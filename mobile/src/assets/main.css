@@ -1,0 +1,98 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-background: #fbf9f8;
+  --color-surface: #fbf9f8;
+  --color-surface-container: #efeded;
+  --color-surface-container-low: #f5f3f3;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #eae8e7;
+  --color-surface-container-highest: #e4e2e2;
+  --color-on-background: #1b1c1c;
+  --color-on-surface: #1b1c1c;
+  --color-on-surface-variant: #3f4a36;
+  --color-primary: #2b6c00;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #58cc02;
+  --color-on-primary-container: #1e5000;
+  --color-secondary: #006590;
+  --color-secondary-container: #2fb8ff;
+  --color-on-secondary-container: #004666;
+  --color-tertiary: #755b00;
+  --color-tertiary-container: #ddad00;
+  --color-error: #ba1a1a;
+  --color-outline-variant: #becbb1;
+  --font-headline: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Be Vietnam Pro', ui-sans-serif, system-ui, sans-serif;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 1.5rem;
+  --spacing-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --spacing-safe-top: env(safe-area-inset-top, 0px);
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font-body);
+    background: var(--color-background);
+    color: var(--color-on-background);
+  }
+
+  #app {
+    min-height: 100vh;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .app-shell {
+    @apply mx-auto flex min-h-screen w-full max-w-[1040px] flex-col bg-background text-on-background;
+    padding-top: var(--spacing-safe-top);
+    padding-bottom: calc(5.5rem + var(--spacing-safe-bottom));
+  }
+
+  .tactile-card {
+    @apply rounded-2xl border-2 border-surface-container-highest bg-surface-container-lowest;
+    border-bottom-width: 4px;
+  }
+
+  .tactile-btn {
+    @apply rounded-xl border-2 border-primary bg-primary-container font-bold text-on-primary-container;
+    border-bottom-width: 4px;
+    transition: transform 0.1s ease, border-bottom-width 0.1s ease;
+  }
+
+  .tactile-btn:active {
+    transform: translateY(2px);
+    border-bottom-width: 2px;
+  }
+
+  .nav-shell {
+    @apply fixed inset-x-0 bottom-0 z-50 border-t-4 border-surface-container-highest bg-surface;
+    padding-bottom: var(--spacing-safe-bottom);
+  }
+
+  .nav-item {
+    @apply flex min-h-12 min-w-16 flex-col items-center justify-center rounded-xl px-2 py-2 text-sm font-bold text-on-surface-variant;
+  }
+
+  .nav-item-active {
+    @apply bg-primary-container text-on-primary-container;
+    border-bottom: 4px solid var(--color-primary);
+  }
+}
