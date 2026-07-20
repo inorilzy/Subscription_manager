@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { createSubscription } from '../application/subscriptions'
+import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { getSubscription, updateSubscription } from '../application/subscriptions'
 import { SUBSCRIPTION_CATEGORIES, ValidationError } from '../domain/subscription'
 import { usePreferencesStore } from '../stores/preferences'
 
+const route = useRoute()
 const router = useRouter()
 const preferences = usePreferencesStore()
 
+const id = String(route.params.id ?? '')
 const name = ref('')
 const amount = ref('')
 const nextBillingDate = ref('')
@@ -17,6 +19,7 @@ const paymentMethodLabel = ref('')
 const billingInterval = ref<'monthly' | 'yearly'>('monthly')
 const errorMessage = ref<string | null>(null)
 const submitting = ref(false)
+const loaded = ref(false)
 
 function localizeValidation(message: string): string {
   const map: Record<string, string> = {
@@ -31,17 +34,35 @@ function localizeValidation(message: string): string {
     'Use a short label like “Visa ending 4242”. Do not enter full card numbers or CVV.':
       preferences.t('error.paymentSensitive'),
     'Could not save the subscription. Please try again.': preferences.t('error.saveFailed'),
+    'Subscription not found.': preferences.t('detail.notFound'),
   }
   return map[message] ?? message
 }
+
+onMounted(async () => {
+  const existing = await getSubscription(id)
+  if (!existing) {
+    errorMessage.value = preferences.t('detail.notFound')
+    loaded.value = true
+    return
+  }
+  name.value = existing.name
+  amount.value = (existing.amountMinor / 100).toFixed(2)
+  nextBillingDate.value = existing.nextBillingDate
+  category.value = existing.category === 'Other' ? '' : existing.category
+  planName.value = existing.planName ?? ''
+  paymentMethodLabel.value = existing.paymentMethodLabel ?? ''
+  billingInterval.value = existing.billingInterval
+  loaded.value = true
+})
 
 async function onSubmit() {
   if (submitting.value) return
   errorMessage.value = null
   submitting.value = true
-
   try {
-    await createSubscription({
+    await updateSubscription({
+      id,
       name: name.value,
       amountInput: amount.value,
       nextBillingDate: nextBillingDate.value,
@@ -51,7 +72,7 @@ async function onSubmit() {
       billingInterval: billingInterval.value,
       currency: preferences.currency,
     })
-    await router.push({ name: 'subscriptions' })
+    await router.push({ name: 'subscription-detail', params: { id } })
   } catch (error) {
     if (error instanceof ValidationError) {
       errorMessage.value = localizeValidation(error.message)
@@ -64,7 +85,7 @@ async function onSubmit() {
 }
 
 async function onCancel() {
-  await router.back()
+  await router.push({ name: 'subscription-detail', params: { id } })
 }
 </script>
 
@@ -72,12 +93,13 @@ async function onCancel() {
   <section class="space-y-4">
     <header class="space-y-1">
       <h1 class="font-headline text-3xl font-extrabold text-on-surface">
-        {{ preferences.t('create.title') }}
+        {{ preferences.t('edit.title') }}
       </h1>
-      <p class="text-on-surface-variant">{{ preferences.t('create.subtitle') }}</p>
+      <p class="text-on-surface-variant">{{ preferences.t('edit.subtitle') }}</p>
     </header>
 
     <form
+      v-if="loaded"
       class="tactile-card space-y-4 p-5"
       data-testid="subscription-form"
       @submit.prevent="onSubmit"
@@ -92,9 +114,7 @@ async function onCancel() {
           data-testid="subscription-name"
           type="text"
           required
-          autocomplete="off"
           class="w-full rounded-xl border-2 border-surface-container-highest bg-surface-container-lowest px-3 py-3"
-          placeholder="Netflix"
         />
       </div>
 
@@ -109,9 +129,7 @@ async function onCancel() {
           type="text"
           inputmode="decimal"
           required
-          autocomplete="off"
           class="w-full rounded-xl border-2 border-surface-container-highest bg-surface-container-lowest px-3 py-3"
-          placeholder="15.99"
         />
       </div>
 
@@ -168,41 +186,33 @@ async function onCancel() {
       <div class="space-y-1">
         <label class="text-sm font-bold text-on-surface" for="subscription-plan-name">
           {{ preferences.t('create.planName') }}
-          <span class="font-normal text-on-surface-variant">{{ preferences.t('create.optional') }}</span>
         </label>
         <input
           id="subscription-plan-name"
           v-model="planName"
           data-testid="subscription-plan-name"
           type="text"
-          autocomplete="off"
           class="w-full rounded-xl border-2 border-surface-container-highest bg-surface-container-lowest px-3 py-3"
-          placeholder="Standard"
         />
       </div>
 
       <div class="space-y-1">
         <label class="text-sm font-bold text-on-surface" for="subscription-payment-method">
           {{ preferences.t('create.paymentMethod') }}
-          <span class="font-normal text-on-surface-variant">{{ preferences.t('create.optional') }}</span>
         </label>
         <input
           id="subscription-payment-method"
           v-model="paymentMethodLabel"
           data-testid="subscription-payment-method"
           type="text"
-          autocomplete="off"
           class="w-full rounded-xl border-2 border-surface-container-highest bg-surface-container-lowest px-3 py-3"
-          placeholder="Visa ending 4242"
         />
-        <p class="text-xs text-on-surface-variant">{{ preferences.t('create.paymentHint') }}</p>
       </div>
 
       <p
         v-if="errorMessage"
         class="rounded-xl border-2 border-error/30 bg-error/10 px-3 py-2 text-sm text-error"
         role="alert"
-        data-testid="subscription-form-error"
       >
         {{ errorMessage }}
       </p>
@@ -211,17 +221,12 @@ async function onCancel() {
         <button
           type="button"
           data-testid="subscription-cancel"
-          class="flex-1 rounded-xl border-2 border-surface-container-highest px-4 py-3 font-bold text-on-surface"
+          class="flex-1 rounded-xl border-2 border-surface-container-highest px-4 py-3 font-bold"
           @click="onCancel"
         >
           {{ preferences.t('create.cancel') }}
         </button>
-        <button
-          type="submit"
-          data-testid="subscription-save"
-          class="tactile-btn flex-1 px-4 py-3"
-          :disabled="submitting"
-        >
+        <button type="submit" data-testid="subscription-save" class="tactile-btn flex-1 px-4 py-3">
           {{ submitting ? preferences.t('create.saving') : preferences.t('create.save') }}
         </button>
       </div>

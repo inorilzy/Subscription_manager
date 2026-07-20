@@ -34,17 +34,21 @@ export function parseAmountToMinor(input: string): number {
   return minor
 }
 
-/** Format integer minor units as a localized USD-style display string. */
-export function formatMinorAmount(minor: number, currency = 'USD'): string {
+/** Format integer minor units with the app currency and locale. */
+export function formatMinorAmount(
+  minor: number,
+  currency = 'USD',
+  locale = 'en-US',
+): string {
   const major = minor / 100
   try {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
       currency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(major)
   } catch {
-    return `$${(minor / 100).toFixed(2)}`
+    return `${currency} ${(minor / 100).toFixed(2)}`
   }
 }

@@ -30,9 +30,37 @@
   --spacing-safe-top: env(safe-area-inset-top, 0px);
 }
 
+html[data-theme='dark'] {
+  --color-background: #121412;
+  --color-surface: #121412;
+  --color-surface-container: #1d201c;
+  --color-surface-container-low: #181b17;
+  --color-surface-container-lowest: #0e110e;
+  --color-surface-container-high: #272b26;
+  --color-surface-container-highest: #323632;
+  --color-on-background: #e3e3de;
+  --color-on-surface: #e3e3de;
+  --color-on-surface-variant: #c3cbb8;
+  --color-primary: #7dff3a;
+  --color-on-primary: #123800;
+  --color-primary-container: #3f9e00;
+  --color-on-primary-container: #e8ffd4;
+  --color-secondary: #7ed0ff;
+  --color-secondary-container: #007eb5;
+  --color-on-secondary-container: #dff2ff;
+  --color-tertiary: #f0c230;
+  --color-tertiary-container: #8a6b00;
+  --color-error: #ffb4ab;
+  --color-outline-variant: #444c3d;
+}
+
 @layer base {
   :root {
     color-scheme: light;
+  }
+
+  html[data-theme='dark'] {
+    color-scheme: dark;
   }
 
   body {
@@ -55,6 +83,10 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
+    }
+
+    .tactile-btn:active {
+      transform: none !important;
     }
   }
 }
@@ -94,5 +126,17 @@
   .nav-item-active {
     @apply bg-primary-container text-on-primary-container;
     border-bottom: 4px solid var(--color-primary);
+  }
+
+  .cycle-badge {
+    @apply inline-flex rounded-full border-2 px-2 py-0.5 text-xs font-bold uppercase tracking-wide;
+  }
+
+  .cycle-badge-monthly {
+    @apply border-primary/40 bg-primary-container/40 text-on-primary-container;
+  }
+
+  .cycle-badge-yearly {
+    @apply border-tertiary-container bg-tertiary-container/30 text-tertiary;
   }
 }

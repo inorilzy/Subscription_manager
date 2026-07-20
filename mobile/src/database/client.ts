@@ -98,6 +98,34 @@ class MemoryDatabase implements DatabaseClient {
       return
     }
 
+    if (sql.startsWith('UPDATE preferences SET') || sql.startsWith('UPDATE preferences')) {
+      this.ensureTable('preferences')
+      // Supports: UPDATE preferences SET value = ? WHERE key = ?
+      const value = params[0]
+      const key = params[1]
+      const rows = this.tables.get('preferences')!
+      const existing = rows.find((row) => row.key === key)
+      if (existing) {
+        existing.value = value
+      } else {
+        rows.push({ key, value })
+      }
+      return
+    }
+
+    if (sql.startsWith('INSERT OR REPLACE INTO preferences')) {
+      this.ensureTable('preferences')
+      const [key, value] = params
+      const rows = this.tables.get('preferences')!
+      const existing = rows.find((row) => row.key === key)
+      if (existing) {
+        existing.value = value
+      } else {
+        rows.push({ key, value })
+      }
+      return
+    }
+
     if (sql.startsWith('INSERT INTO subscriptions')) {
       this.ensureTable('subscriptions')
       const [
@@ -139,6 +167,89 @@ class MemoryDatabase implements DatabaseClient {
       return
     }
 
+    if (sql.startsWith('UPDATE subscriptions')) {
+      this.ensureTable('subscriptions')
+      const rows = this.tables.get('subscriptions')!
+
+      if (sql.includes('name = ?') && sql.includes('amount_minor = ?')) {
+        const [
+          name,
+          amount_minor,
+          billing_interval,
+          billing_anchor_day,
+          next_billing_date,
+          category,
+          plan_name,
+          payment_method_label,
+          updated_at,
+          version,
+          id,
+        ] = params
+        const row = rows.find((item) => item.id === id)
+        if (row) {
+          Object.assign(row, {
+            name,
+            amount_minor,
+            billing_interval,
+            billing_anchor_day,
+            next_billing_date,
+            category,
+            plan_name,
+            payment_method_label,
+            updated_at,
+            version,
+          })
+        }
+        return
+      }
+
+      if (sql.includes('SET status = ?') && sql.includes('next_billing_date = ?')) {
+        const [status, next_billing_date, updated_at, id] = params
+        const row = rows.find((item) => item.id === id)
+        if (row) {
+          row.status = status
+          row.next_billing_date = next_billing_date
+          row.updated_at = updated_at
+          row.version = Number(row.version ?? 1) + 1
+        }
+        return
+      }
+
+      if (sql.includes('SET status = ?')) {
+        const [status, updated_at, id] = params
+        const row = rows.find((item) => item.id === id)
+        if (row) {
+          row.status = status
+          row.updated_at = updated_at
+          row.version = Number(row.version ?? 1) + 1
+        }
+        return
+      }
+
+      if (sql.includes('SET deleted_at = ?')) {
+        const [deleted_at, updated_at, id] = params
+        const row = rows.find((item) => item.id === id)
+        if (row) {
+          row.deleted_at = deleted_at
+          row.updated_at = updated_at
+          row.version = Number(row.version ?? 1) + 1
+        }
+        return
+      }
+
+      // advance: SET next_billing_date = ?, updated_at = ?, version = version + 1 WHERE id = ?
+      const nextBillingDate = params[0]
+      const updatedAt = params[1]
+      const id = params[2]
+      const row = rows.find((item) => item.id === id)
+      if (row) {
+        row.next_billing_date = nextBillingDate
+        row.updated_at = updatedAt
+        row.version = Number(row.version ?? 1) + 1
+      }
+      return
+    }
+
     if (sql.startsWith('DELETE FROM')) {
       const match = sql.match(/DELETE FROM (\w+)/i)
       const tableName = match?.[1]
@@ -168,6 +279,11 @@ class MemoryDatabase implements DatabaseClient {
 
       if (sql.includes('deleted_at IS NULL')) {
         rows = rows.filter((row) => row.deleted_at == null)
+      }
+
+      if (sql.includes("status = 'active'") || sql.includes('status = ?')) {
+        const status = sql.includes('status = ?') ? params[params.length - 1] : 'active'
+        rows = rows.filter((row) => row.status === status)
       }
 
       if (sql.includes('COUNT(*)')) {
@@ -308,7 +424,8 @@ export async function migrate(client: DatabaseClient): Promise<void> {
 export async function countActiveSubscriptions(): Promise<number> {
   const db = await getDatabase()
   const result = await db.query(
-    'SELECT COUNT(*) as count FROM subscriptions WHERE deleted_at IS NULL',
+    `SELECT COUNT(*) as count FROM subscriptions
+     WHERE deleted_at IS NULL AND status = 'active'`,
   )
   const count = result.values?.[0]?.count
   return typeof count === 'number' ? count : Number(count ?? 0)
@@ -319,6 +436,11 @@ export async function getPreference(key: string, fallback: string): Promise<stri
   const result = await db.query('SELECT value FROM preferences WHERE key = ?', [key])
   const value = result.values?.[0]?.value
   return typeof value === 'string' ? value : fallback
+}
+
+export async function setPreference(key: string, value: string): Promise<void> {
+  const db = await getDatabase()
+  await db.execute('INSERT OR REPLACE INTO preferences (key, value) VALUES (?, ?)', [key, value])
 }
 
 export async function resetDatabaseForTests(): Promise<void> {

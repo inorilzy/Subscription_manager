@@ -4,7 +4,7 @@
 
 **Blocked by:** 06 — 搜索和筛选订阅; 07 — 查看订阅组合概览; 08 — 分析本月计划扣费; 10 — 导出并恢复本地备份.
 
-**Status:** ready-for-agent
+**Status:** partial — web build + cap sync done; Android APK blocked on missing JAVA_HOME
 
 - [ ] 生成可安装的 Android 候选构建，并在干净安装、升级安装、离线启动和进程被系统终止后重新启动的场景中正常运行。
 - [ ] 最高层生命周期验收完成“新增 → Overview/Subscriptions/Details/Stats → 编辑 → 提醒重排 → 取消 → 重新启用 → 删除”，使用真实迁移后的 SQLite 和可控通知边界。

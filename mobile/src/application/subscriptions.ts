@@ -1,5 +1,8 @@
 import { getDatabase, getPreference } from '../database/client'
-import { parseAmountToMinor } from '../domain/money'
+import { reconcileNotifications } from './reminders'
+import { advanceNextBillingDate, anchorDayFromDate } from '../domain/billing'
+import { todayDateOnly } from '../domain/clock'
+import { MoneyError, parseAmountToMinor } from '../domain/money'
 import {
   type CreateSubscriptionInput,
   type Subscription,
@@ -10,6 +13,10 @@ import {
   normalizeStatus,
   parseDateOnly,
 } from '../domain/subscription'
+
+export interface UpdateSubscriptionInput extends CreateSubscriptionInput {
+  id: string
+}
 
 function createId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -40,6 +47,13 @@ function mapRow(row: Record<string, unknown>): Subscription {
   }
 }
 
+function mapMoneyError(error: unknown): ValidationError {
+  if (error instanceof MoneyError) {
+    return new ValidationError(error.message)
+  }
+  return new ValidationError('Enter a valid amount greater than zero.')
+}
+
 function validateCreateInput(input: CreateSubscriptionInput): {
   name: string
   amountMinor: number
@@ -67,9 +81,7 @@ function validateCreateInput(input: CreateSubscriptionInput): {
   try {
     amountMinor = parseAmountToMinor(input.amountInput)
   } catch (error) {
-    throw new ValidationError(
-      error instanceof Error ? error.message : 'Enter a valid amount greater than zero.',
-    )
+    throw mapMoneyError(error)
   }
 
   const paymentMethodLabel = input.paymentMethodLabel?.trim() || null
@@ -83,7 +95,7 @@ function validateCreateInput(input: CreateSubscriptionInput): {
   const category = normalizeCategory(input.category)
   const currency = input.currency?.trim() || 'USD'
   const billingInterval = normalizeBillingInterval(input.billingInterval)
-  const billingAnchorDay = Number(nextBillingDate.slice(8, 10))
+  const billingAnchorDay = anchorDayFromDate(nextBillingDate)
 
   return {
     name,
@@ -105,14 +117,46 @@ function looksLikeSensitivePaymentData(label: string): boolean {
   return false
 }
 
+async function advanceIfNeeded(subscription: Subscription): Promise<Subscription> {
+  if (subscription.status !== 'active' || subscription.deletedAt) {
+    return subscription
+  }
+
+  const today = todayDateOnly()
+  const advanced = advanceNextBillingDate(
+    subscription.nextBillingDate,
+    subscription.billingInterval,
+    subscription.billingAnchorDay,
+    today,
+  )
+
+  if (advanced === subscription.nextBillingDate) {
+    return subscription
+  }
+
+  const now = new Date().toISOString()
+  const db = await getDatabase()
+  await db.execute(
+    `UPDATE subscriptions
+     SET next_billing_date = ?, updated_at = ?, version = version + 1
+     WHERE id = ? AND deleted_at IS NULL`,
+    [advanced, now, subscription.id],
+  )
+
+  return {
+    ...subscription,
+    nextBillingDate: advanced,
+    updatedAt: now,
+    version: subscription.version + 1,
+  }
+}
+
 export async function createSubscription(
   input: CreateSubscriptionInput,
 ): Promise<Subscription> {
   const validated = validateCreateInput(input)
   const currency =
-    validated.currency === 'USD'
-      ? await getPreference('currency', 'USD')
-      : validated.currency
+    input.currency?.trim() || (await getPreference('currency', 'USD'))
 
   const now = new Date().toISOString()
   const subscription: Subscription = {
@@ -165,17 +209,29 @@ export async function createSubscription(
     throw new ValidationError('Could not save the subscription. Please try again.')
   }
 
-  return subscription
+  const created = await advanceIfNeeded(subscription)
+  await reconcileNotifications(await listSubscriptions({ includeCancelled: true }))
+  return created
 }
-
-export async function listSubscriptions(): Promise<Subscription[]> {
+export async function listSubscriptions(options?: {
+  includeCancelled?: boolean
+}): Promise<Subscription[]> {
   const db = await getDatabase()
   const result = await db.query(
     `SELECT * FROM subscriptions
      WHERE deleted_at IS NULL
      ORDER BY next_billing_date ASC, name ASC`,
   )
-  return (result.values ?? []).map(mapRow)
+  const rows = (result.values ?? []).map(mapRow)
+  const advanced = await Promise.all(rows.map((row) => advanceIfNeeded(row)))
+  const filtered = options?.includeCancelled
+    ? advanced
+    : advanced.filter((item) => item.status === 'active')
+  return filtered.sort((a, b) => {
+    const dateCmp = a.nextBillingDate.localeCompare(b.nextBillingDate)
+    if (dateCmp !== 0) return dateCmp
+    return a.name.localeCompare(b.name)
+  })
 }
 
 export async function getSubscription(id: string): Promise<Subscription | null> {
@@ -185,7 +241,8 @@ export async function getSubscription(id: string): Promise<Subscription | null> 
     [id],
   )
   const row = result.values?.[0]
-  return row ? mapRow(row) : null
+  if (!row) return null
+  return advanceIfNeeded(mapRow(row))
 }
 
 export async function getOverviewSnapshot(): Promise<{
@@ -193,7 +250,7 @@ export async function getOverviewSnapshot(): Promise<{
   monthlyRecurringMinor: number
   upcoming: Subscription[]
 }> {
-  const subscriptions = (await listSubscriptions()).filter((item) => item.status === 'active')
+  const subscriptions = await listSubscriptions()
   const monthlyRecurringMinor = subscriptions.reduce((sum, item) => {
     if (item.billingInterval === 'yearly') {
       return sum + Math.round(item.amountMinor / 12)
@@ -206,4 +263,134 @@ export async function getOverviewSnapshot(): Promise<{
     monthlyRecurringMinor,
     upcoming: subscriptions.slice(0, 5),
   }
+}
+
+export async function updateSubscription(
+  input: UpdateSubscriptionInput,
+): Promise<Subscription> {
+  const existing = await getSubscription(input.id)
+  if (!existing) {
+    throw new ValidationError('Subscription not found.')
+  }
+
+  const validated = validateCreateInput(input)
+  const now = new Date().toISOString()
+  const nextVersion = existing.version + 1
+  const updated: Subscription = {
+    ...existing,
+    name: validated.name,
+    amountMinor: validated.amountMinor,
+    billingInterval: validated.billingInterval,
+    billingAnchorDay: validated.billingAnchorDay,
+    nextBillingDate: validated.nextBillingDate,
+    category: validated.category,
+    planName: validated.planName,
+    paymentMethodLabel: validated.paymentMethodLabel,
+    updatedAt: now,
+    version: nextVersion,
+  }
+
+  const db = await getDatabase()
+  try {
+    await db.execute(
+      `UPDATE subscriptions SET
+        name = ?, amount_minor = ?, billing_interval = ?, billing_anchor_day = ?,
+        next_billing_date = ?, category = ?, plan_name = ?, payment_method_label = ?,
+        updated_at = ?, version = ?
+       WHERE id = ? AND deleted_at IS NULL`,
+      [
+        updated.name,
+        updated.amountMinor,
+        updated.billingInterval,
+        updated.billingAnchorDay,
+        updated.nextBillingDate,
+        updated.category,
+        updated.planName,
+        updated.paymentMethodLabel,
+        updated.updatedAt,
+        updated.version,
+        updated.id,
+      ],
+    )
+  } catch {
+    throw new ValidationError('Could not save the subscription. Please try again.')
+  }
+
+  const result = await advanceIfNeeded(updated)
+  await reconcileNotifications(await listSubscriptions({ includeCancelled: true }))
+  return result
+}
+
+export async function cancelSubscription(id: string): Promise<Subscription> {
+  const existing = await getSubscription(id)
+  if (!existing) {
+    throw new ValidationError('Subscription not found.')
+  }
+  if (existing.status === 'cancelled') return existing
+
+  const now = new Date().toISOString()
+  const db = await getDatabase()
+  await db.execute(
+    `UPDATE subscriptions SET status = ?, updated_at = ?, version = version + 1
+     WHERE id = ? AND deleted_at IS NULL`,
+    ['cancelled', now, id],
+  )
+
+  const cancelled = {
+    ...existing,
+    status: 'cancelled' as const,
+    updatedAt: now,
+    version: existing.version + 1,
+  }
+  await reconcileNotifications(await listSubscriptions({ includeCancelled: true }))
+  return cancelled
+}
+
+export async function reactivateSubscription(id: string): Promise<Subscription> {
+  const existing = await getSubscription(id)
+  if (!existing) {
+    throw new ValidationError('Subscription not found.')
+  }
+
+  const now = new Date().toISOString()
+  const today = todayDateOnly()
+  const nextBillingDate = advanceNextBillingDate(
+    existing.nextBillingDate,
+    existing.billingInterval,
+    existing.billingAnchorDay,
+    today,
+  )
+
+  const db = await getDatabase()
+  await db.execute(
+    `UPDATE subscriptions SET status = ?, next_billing_date = ?, updated_at = ?, version = version + 1
+     WHERE id = ? AND deleted_at IS NULL`,
+    ['active', nextBillingDate, now, id],
+  )
+
+  const reactivated = {
+    ...existing,
+    status: 'active' as const,
+    nextBillingDate,
+    updatedAt: now,
+    version: existing.version + 1,
+  }
+  await reconcileNotifications(await listSubscriptions({ includeCancelled: true }))
+  return reactivated
+}
+
+export async function deleteSubscription(id: string): Promise<void> {
+  const existing = await getSubscription(id)
+  if (!existing) {
+    throw new ValidationError('Subscription not found.')
+  }
+
+  const now = new Date().toISOString()
+  const db = await getDatabase()
+  await db.execute(
+    `UPDATE subscriptions SET deleted_at = ?, updated_at = ?, version = version + 1
+     WHERE id = ?`,
+    [now, now, id],
+  )
+  await reconcileNotifications(await listSubscriptions({ includeCancelled: true }))
 }

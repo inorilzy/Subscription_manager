@@ -1,3 +1,5 @@
+import { todayDateOnly } from './clock'
+
 export type BillingInterval = 'monthly' | 'yearly'
 export type SubscriptionStatus = 'active' | 'cancelled'
 export type SubscriptionCategory =
@@ -54,15 +56,25 @@ export class ValidationError extends Error {
   }
 }
 
+export type RelativeLabelFn = (days: number) => string
+
 /** Relative countdown label for a date-only ISO string (YYYY-MM-DD). */
 export function relativeBillingLabel(
   nextBillingDate: string,
-  today: Date = new Date(),
+  options?: {
+    todayDateOnly?: string
+    format?: RelativeLabelFn
+  },
 ): string {
+  const today = options?.todayDateOnly ?? todayDateOnly()
   const target = parseDateOnly(nextBillingDate)
-  const start = startOfDay(today)
+  const start = parseDateOnly(today)
   const diffMs = target.getTime() - start.getTime()
   const days = Math.round(diffMs / 86_400_000)
+
+  if (options?.format) {
+    return options.format(days)
+  }
 
   if (days === 0) return 'Today'
   if (days === 1) return 'In 1 day'
@@ -88,10 +100,6 @@ export function parseDateOnly(value: string): Date {
     throw new ValidationError('Next billing date must be a valid date.')
   }
   return date
-}
-
-function startOfDay(date: Date): Date {
-  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
 }
 
 export function normalizeCategory(value?: string | null): SubscriptionCategory {

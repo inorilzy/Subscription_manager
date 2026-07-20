@@ -1,21 +1,28 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { usePreferencesStore } from '../stores/preferences'
 
 const route = useRoute()
 const router = useRouter()
+const preferences = usePreferencesStore()
 
-const items = [
-  { name: 'overview', label: 'Overview', to: '/', testId: 'nav-overview' },
+const items = computed(() => [
+  { name: 'overview', label: preferences.t('nav.overview'), to: '/', testId: 'nav-overview' },
   {
     name: 'subscriptions',
-    label: 'Subscriptions',
+    label: preferences.t('nav.subscriptions'),
     to: '/subscriptions',
     testId: 'nav-subscriptions',
   },
-  { name: 'stats', label: 'Stats', to: '/stats', testId: 'nav-stats' },
-  { name: 'settings', label: 'Settings', to: '/settings', testId: 'nav-settings' },
-] as const
+  { name: 'stats', label: preferences.t('nav.stats'), to: '/stats', testId: 'nav-stats' },
+  {
+    name: 'settings',
+    label: preferences.t('nav.settings'),
+    to: '/settings',
+    testId: 'nav-settings',
+  },
+])
 
 const activeName = computed(() => String(route.name ?? 'overview'))
 

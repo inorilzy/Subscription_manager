@@ -3,22 +3,25 @@ import { onMounted, ref } from 'vue'
 import { RouterView } from 'vue-router'
 import AppBottomNav from './components/AppBottomNav.vue'
 import { getDatabase } from './database/client'
+import { usePreferencesStore } from './stores/preferences'
 
 const ready = ref(false)
 const bootError = ref<string | null>(null)
+const preferences = usePreferencesStore()
 
 onMounted(async () => {
   try {
     await getDatabase()
+    await preferences.load()
     ready.value = true
   } catch (error) {
-    bootError.value = error instanceof Error ? error.message : 'Failed to start local database'
+    bootError.value = error instanceof Error ? error.message : preferences.t('app.bootError')
   }
 })
 </script>
 
 <template>
-  <div class="app-shell">
+  <div class="app-shell" :data-theme="preferences.theme">
     <div v-if="bootError" class="p-4 text-error" role="alert">
       {{ bootError }}
     </div>
@@ -33,7 +36,7 @@ onMounted(async () => {
     </template>
 
     <div v-else class="p-4 text-on-surface-variant" data-testid="app-loading">
-      Starting SubScout…
+      {{ preferences.loaded ? preferences.t('app.starting') : 'Starting SubScout…' }}
     </div>
   </div>
 </template>

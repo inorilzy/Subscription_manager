@@ -8,6 +8,7 @@ import OverviewView from '../views/OverviewView.vue'
 import SubscriptionsView from '../views/SubscriptionsView.vue'
 import SubscriptionCreateView from '../views/SubscriptionCreateView.vue'
 import SubscriptionDetailView from '../views/SubscriptionDetailView.vue'
+import SubscriptionEditView from '../views/SubscriptionEditView.vue'
 import StatsView from '../views/StatsView.vue'
 import SettingsView from '../views/SettingsView.vue'
 const routes: RouteRecordRaw[] = [
@@ -28,6 +29,12 @@ const routes: RouteRecordRaw[] = [
     name: 'subscription-create',
     component: SubscriptionCreateView,
     meta: { title: 'Add Subscription' },
+  },
+  {
+    path: '/subscriptions/:id/edit',
+    name: 'subscription-edit',
+    component: SubscriptionEditView,
+    meta: { title: 'Edit Subscription' },
   },
   {
     path: '/subscriptions/:id',
