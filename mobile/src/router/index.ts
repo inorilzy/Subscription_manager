@@ -5,7 +5,11 @@ import {
   type RouteRecordRaw,
 } from 'vue-router'
 import OverviewView from '../views/OverviewView.vue'
-
+import SubscriptionsView from '../views/SubscriptionsView.vue'
+import SubscriptionCreateView from '../views/SubscriptionCreateView.vue'
+import SubscriptionDetailView from '../views/SubscriptionDetailView.vue'
+import StatsView from '../views/StatsView.vue'
+import SettingsView from '../views/SettingsView.vue'
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -16,19 +20,31 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/subscriptions',
     name: 'subscriptions',
-    component: () => import('../views/SubscriptionsView.vue'),
+    component: SubscriptionsView,
     meta: { title: 'Subscriptions' },
+  },
+  {
+    path: '/subscriptions/new',
+    name: 'subscription-create',
+    component: SubscriptionCreateView,
+    meta: { title: 'Add Subscription' },
+  },
+  {
+    path: '/subscriptions/:id',
+    name: 'subscription-detail',
+    component: SubscriptionDetailView,
+    meta: { title: 'Subscription Details' },
   },
   {
     path: '/stats',
     name: 'stats',
-    component: () => import('../views/StatsView.vue'),
+    component: StatsView,
     meta: { title: 'Stats' },
   },
   {
     path: '/settings',
     name: 'settings',
-    component: () => import('../views/SettingsView.vue'),
+    component: SettingsView,
     meta: { title: 'Settings' },
   },
 ]

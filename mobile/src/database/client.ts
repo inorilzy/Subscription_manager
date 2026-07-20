@@ -52,6 +52,18 @@ const CREATE_STATEMENTS = [
 class MemoryDatabase implements DatabaseClient {
   private tables = new Map<string, Array<Record<string, unknown>>>()
 
+  /** Shared store so reinitialize can keep durable test data. */
+  static sharedStore: Map<string, Array<Record<string, unknown>>> | null = null
+
+  constructor(reuseShared = false) {
+    if (reuseShared && MemoryDatabase.sharedStore) {
+      this.tables = MemoryDatabase.sharedStore
+    } else {
+      this.tables = new Map()
+      MemoryDatabase.sharedStore = this.tables
+    }
+  }
+
   async execute(statement: string, params: SqlParams = []): Promise<void> {
     const sql = statement.trim()
 
@@ -86,6 +98,47 @@ class MemoryDatabase implements DatabaseClient {
       return
     }
 
+    if (sql.startsWith('INSERT INTO subscriptions')) {
+      this.ensureTable('subscriptions')
+      const [
+        id,
+        name,
+        amount_minor,
+        currency,
+        billing_interval,
+        billing_anchor_day,
+        next_billing_date,
+        category,
+        plan_name,
+        payment_method_label,
+        status,
+        reminder_enabled,
+        created_at,
+        updated_at,
+        deleted_at,
+        version,
+      ] = params
+      this.tables.get('subscriptions')!.push({
+        id,
+        name,
+        amount_minor,
+        currency,
+        billing_interval,
+        billing_anchor_day,
+        next_billing_date,
+        category,
+        plan_name,
+        payment_method_label,
+        status,
+        reminder_enabled,
+        created_at,
+        updated_at,
+        deleted_at,
+        version,
+      })
+      return
+    }
+
     if (sql.startsWith('DELETE FROM')) {
       const match = sql.match(/DELETE FROM (\w+)/i)
       const tableName = match?.[1]
@@ -107,11 +160,28 @@ class MemoryDatabase implements DatabaseClient {
     }
 
     if (sql.includes('FROM subscriptions')) {
-      const rows = this.tables.get('subscriptions') ?? []
-      if (sql.includes('COUNT(*)')) {
-        const active = rows.filter((row) => row.deleted_at == null)
-        return { values: [{ count: active.length }] }
+      let rows = [...(this.tables.get('subscriptions') ?? [])]
+
+      if (sql.includes('WHERE id = ?')) {
+        rows = rows.filter((row) => row.id === params[0])
       }
+
+      if (sql.includes('deleted_at IS NULL')) {
+        rows = rows.filter((row) => row.deleted_at == null)
+      }
+
+      if (sql.includes('COUNT(*)')) {
+        return { values: [{ count: rows.length }] }
+      }
+
+      if (sql.includes('ORDER BY next_billing_date')) {
+        rows.sort((a, b) => {
+          const dateCmp = String(a.next_billing_date).localeCompare(String(b.next_billing_date))
+          if (dateCmp !== 0) return dateCmp
+          return String(a.name).localeCompare(String(b.name))
+        })
+      }
+
       return { values: rows }
     }
 
@@ -174,13 +244,15 @@ export async function getDatabase(): Promise<DatabaseClient> {
   return sharedClient
 }
 
-async function initializeDatabase(): Promise<DatabaseClient> {
+async function initializeDatabase(options?: { keepData?: boolean }): Promise<DatabaseClient> {
   // Tests and plain browser use the in-memory client so CI stays native-free.
   // Native Android/iOS use Capacitor SQLite for durable on-device storage.
   const useNative =
     import.meta.env.MODE !== 'test' && Capacitor.isNativePlatform()
 
-  const client = useNative ? await openNativeDatabase() : new MemoryDatabase()
+  const client = useNative
+    ? await openNativeDatabase()
+    : new MemoryDatabase(Boolean(options?.keepData))
   await migrate(client)
   return client
 }
@@ -255,5 +327,16 @@ export async function resetDatabaseForTests(): Promise<void> {
   }
   sharedClient = null
   readyPromise = null
-  sharedClient = await initializeDatabase()
+  MemoryDatabase.sharedStore = null
+  sharedClient = await initializeDatabase({ keepData: false })
+}
+
+/** Rebind the shared client while keeping the in-memory store (process restart simulation). */
+export async function reinitializeDatabaseKeepingDataForTests(): Promise<void> {
+  if (sharedClient) {
+    await sharedClient.close()
+  }
+  sharedClient = null
+  readyPromise = null
+  sharedClient = await initializeDatabase({ keepData: true })
 }
