@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { addCategory, listCategories } from '../application/categories'
 import { createSubscription } from '../application/subscriptions'
-import { SUBSCRIPTION_CATEGORIES, ValidationError } from '../domain/subscription'
+import { ValidationError } from '../domain/subscription'
 import { usePreferencesStore } from '../stores/preferences'
 
 const router = useRouter()
@@ -17,6 +18,29 @@ const paymentMethodLabel = ref('')
 const billingInterval = ref<'monthly' | 'yearly'>('monthly')
 const errorMessage = ref<string | null>(null)
 const submitting = ref(false)
+const categories = ref<string[]>([])
+const showNewCategory = ref(false)
+const newCategoryName = ref('')
+
+onMounted(async () => {
+  categories.value = await listCategories()
+})
+
+async function onAddCategory() {
+  errorMessage.value = null
+  try {
+    const created = await addCategory(newCategoryName.value)
+    categories.value = await listCategories()
+    category.value = created
+    newCategoryName.value = ''
+    showNewCategory.value = false
+  } catch (error) {
+    errorMessage.value =
+      error instanceof ValidationError
+        ? localizeValidation(error.message)
+        : preferences.t('error.saveFailed')
+  }
+}
 
 function localizeValidation(message: string): string {
   const map: Record<string, string> = {
@@ -31,6 +55,8 @@ function localizeValidation(message: string): string {
     'Use a short label like “Visa ending 4242”. Do not enter full card numbers or CVV.':
       preferences.t('error.paymentSensitive'),
     'Could not save the subscription. Please try again.': preferences.t('error.saveFailed'),
+    'Category name must be 1-24 characters.':
+      preferences.language === 'zh-CN' ? '分类名称需为 1-24 个字符。' : 'Category name must be 1-24 characters.',
   }
   return map[message] ?? message
 }
@@ -144,7 +170,7 @@ async function onCancel() {
         />
       </div>
 
-      <div class="space-y-1">
+      <div class="space-y-2">
         <label class="text-sm font-bold text-on-surface" for="subscription-category">
           {{ preferences.t('create.category') }}
         </label>
@@ -156,13 +182,42 @@ async function onCancel() {
         >
           <option value="">{{ preferences.t('create.categoryDefault') }}</option>
           <option
-            v-for="item in SUBSCRIPTION_CATEGORIES.filter((c) => c !== 'Other')"
+            v-for="item in categories.filter((c) => c !== 'Other')"
             :key="item"
             :value="item"
           >
             {{ item }}
           </option>
         </select>
+
+        <button
+          v-if="!showNewCategory"
+          type="button"
+          class="text-sm font-bold text-primary"
+          data-testid="new-category-toggle"
+          @click="showNewCategory = true"
+        >
+          + {{ preferences.t('create.newCategory') }}
+        </button>
+        <div v-else class="flex gap-2" data-testid="new-category-row">
+          <input
+            v-model="newCategoryName"
+            data-testid="new-category-name"
+            type="text"
+            maxlength="24"
+            class="flex-1 rounded-xl border-2 border-surface-container-highest bg-surface-container-lowest px-3 py-2"
+            :placeholder="preferences.t('create.newCategoryPlaceholder')"
+            @keydown.enter.prevent="onAddCategory"
+          />
+          <button
+            type="button"
+            class="tactile-btn px-3 py-2"
+            data-testid="new-category-add"
+            @click="onAddCategory"
+          >
+            {{ preferences.t('create.newCategoryAdd') }}
+          </button>
+        </div>
       </div>
 
       <div class="space-y-1">

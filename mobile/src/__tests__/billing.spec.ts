@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   addBillingInterval,
   advanceNextBillingDate,
+  cycleProgress,
+  dailyAmountMinor,
+  previousBillingDate,
   resolveBillingDate,
 } from '../domain/billing'
 
@@ -32,5 +35,35 @@ describe('billing recurrence', () => {
 
   it('crosses year boundaries for monthly renewals', () => {
     expect(addBillingInterval('2030-12-10', 'monthly', 10)).toBe('2031-01-10')
+  })
+})
+
+describe('cycle progress and daily amount', () => {
+  it('computes previous billing date preserving anchors', () => {
+    expect(previousBillingDate('2030-06-15', 'monthly', 15)).toBe('2030-05-15')
+    expect(previousBillingDate('2030-03-31', 'monthly', 31)).toBe('2030-02-28')
+    expect(previousBillingDate('2030-06-01', 'yearly', 1)).toBe('2029-06-01')
+  })
+
+  it('computes cycle progress between occurrences', () => {
+    // Cycle 2030-05-15 -> 2030-06-15 = 31 days
+    const halfway = cycleProgress('2030-06-15', 'monthly', 15, '2030-05-31')
+    expect(halfway.cycleDays).toBe(31)
+    expect(halfway.daysLeft).toBe(15)
+    expect(halfway.fraction).toBeCloseTo(16 / 31, 5)
+
+    const start = cycleProgress('2030-06-15', 'monthly', 15, '2030-05-15')
+    expect(start.fraction).toBe(0)
+
+    const due = cycleProgress('2030-06-15', 'monthly', 15, '2030-06-15')
+    expect(due.fraction).toBe(1)
+    expect(due.daysLeft).toBe(0)
+  })
+
+  it('computes daily cost from the real cycle length', () => {
+    // 31-day cycle
+    expect(dailyAmountMinor(3100, '2030-06-15', 'monthly', 15)).toBeCloseTo(100, 5)
+    // 365-day yearly cycle 2029-06-01 -> 2030-06-01
+    expect(dailyAmountMinor(36500, '2030-06-01', 'yearly', 1)).toBeCloseTo(100, 5)
   })
 })

@@ -5,6 +5,7 @@ import {
   importBackup,
   validateBackup,
 } from '../application/backup'
+import { deliverBackup } from '../application/backup-delivery'
 import {
   getReminderSettings,
   reconcileNotifications,
@@ -113,11 +114,23 @@ async function onLeadDaysChange(event: Event) {
 
 async function onExport() {
   const doc = await exportBackup()
-  lastExportJson.value = JSON.stringify(doc, null, 2)
-  backupMessage.value =
-    preferences.language === 'zh-CN'
-      ? '备份已生成。文件包含敏感订阅信息，请安全保存。'
-      : 'Backup ready. The file contains sensitive subscription data — store it securely.'
+  try {
+    const result = await deliverBackup(doc)
+    if (result.method === 'display') {
+      lastExportJson.value = JSON.stringify(doc, null, 2)
+    }
+    backupMessage.value =
+      preferences.language === 'zh-CN'
+        ? `备份已生成（${result.fileName}）。文件包含敏感订阅信息，请安全保存。`
+        : `Backup ready (${result.fileName}). It contains sensitive subscription data — store it securely.`
+  } catch {
+    // Share sheet dismissed or file write failed: fall back to on-screen JSON.
+    lastExportJson.value = JSON.stringify(doc, null, 2)
+    backupMessage.value =
+      preferences.language === 'zh-CN'
+        ? '分享未完成，已在下方显示备份内容。'
+        : 'Share was not completed; backup shown below instead.'
+  }
 }
 
 async function onImportFile(event: Event) {

@@ -2,22 +2,26 @@ import { todayDateOnly } from './clock'
 
 export type BillingInterval = 'monthly' | 'yearly'
 export type SubscriptionStatus = 'active' | 'cancelled'
-export type SubscriptionCategory =
-  | 'Entertainment'
-  | 'Music'
-  | 'Productivity'
-  | 'Utilities'
-  | 'Health'
-  | 'Other'
+/** Built-in categories ship fixed; users may add custom display categories. */
+export type SubscriptionCategory = string
 
-export const SUBSCRIPTION_CATEGORIES: SubscriptionCategory[] = [
+export const BUILTIN_CATEGORIES = [
   'Entertainment',
   'Music',
   'Productivity',
   'Utilities',
   'Health',
   'Other',
-]
+] as const
+
+export const SUBSCRIPTION_CATEGORIES: SubscriptionCategory[] = [...BUILTIN_CATEGORIES]
+
+const MAX_CATEGORY_LENGTH = 24
+
+export function isValidCategoryName(value: string): boolean {
+  const trimmed = value.trim()
+  return trimmed.length > 0 && trimmed.length <= MAX_CATEGORY_LENGTH
+}
 
 export interface Subscription {
   id: string
@@ -103,10 +107,9 @@ export function parseDateOnly(value: string): Date {
 }
 
 export function normalizeCategory(value?: string | null): SubscriptionCategory {
-  if (!value) return 'Other'
-  return (SUBSCRIPTION_CATEGORIES as string[]).includes(value)
-    ? (value as SubscriptionCategory)
-    : 'Other'
+  const trimmed = value?.trim()
+  if (!trimmed) return 'Other'
+  return isValidCategoryName(trimmed) ? trimmed : 'Other'
 }
 
 export function normalizeBillingInterval(value?: string | null): BillingInterval {

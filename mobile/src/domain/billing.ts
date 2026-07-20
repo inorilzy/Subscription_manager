@@ -67,3 +67,62 @@ export function advanceNextBillingDate(
 export function anchorDayFromDate(dateOnly: string): number {
   return Number(dateOnly.slice(8, 10))
 }
+
+/** Rewind one billing interval, preserving the anchor day. */
+export function previousBillingDate(
+  dateOnly: string,
+  interval: BillingInterval,
+  anchorDay: number,
+): string {
+  const date = parseDateOnly(dateOnly)
+  let year = date.getUTCFullYear()
+  let month = date.getUTCMonth()
+
+  if (interval === 'yearly') {
+    year -= 1
+  } else {
+    month -= 1
+    if (month < 0) {
+      month = 11
+      year -= 1
+    }
+  }
+
+  return resolveBillingDate(year, month, anchorDay)
+}
+
+function diffDays(fromDateOnly: string, toDateOnly: string): number {
+  const from = parseDateOnly(fromDateOnly)
+  const to = parseDateOnly(toDateOnly)
+  return Math.round((to.getTime() - from.getTime()) / 86_400_000)
+}
+
+/**
+ * Elapsed fraction of the current billing cycle, clamped to 0..1.
+ * Cycle runs from the previous occurrence to nextBillingDate.
+ */
+export function cycleProgress(
+  nextBillingDate: string,
+  interval: BillingInterval,
+  anchorDay: number,
+  todayDateOnly: string,
+): { fraction: number; daysLeft: number; cycleDays: number } {
+  const start = previousBillingDate(nextBillingDate, interval, anchorDay)
+  const cycleDays = Math.max(1, diffDays(start, nextBillingDate))
+  const elapsed = diffDays(start, todayDateOnly)
+  const fraction = Math.min(1, Math.max(0, elapsed / cycleDays))
+  const daysLeft = Math.max(0, diffDays(todayDateOnly, nextBillingDate))
+  return { fraction, daysLeft, cycleDays }
+}
+
+/** Average cost per day in minor units for the current cycle. */
+export function dailyAmountMinor(
+  amountMinor: number,
+  nextBillingDate: string,
+  interval: BillingInterval,
+  anchorDay: number,
+): number {
+  const start = previousBillingDate(nextBillingDate, interval, anchorDay)
+  const cycleDays = Math.max(1, diffDays(start, nextBillingDate))
+  return amountMinor / cycleDays
+}

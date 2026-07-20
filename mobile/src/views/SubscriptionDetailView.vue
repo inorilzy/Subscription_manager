@@ -7,6 +7,8 @@ import {
   getSubscription,
   reactivateSubscription,
 } from '../application/subscriptions'
+import { cycleProgress, dailyAmountMinor } from '../domain/billing'
+import { todayDateOnly } from '../domain/clock'
 import { relativeBillingLabel, type Subscription } from '../domain/subscription'
 import { usePreferencesStore } from '../stores/preferences'
 
@@ -40,6 +42,29 @@ const cycleLabel = computed(() => {
     : preferences.t('common.monthly')
 })
 
+const dailyLabel = computed(() => {
+  if (!subscription.value) return ''
+  const perDay = dailyAmountMinor(
+    subscription.value.amountMinor,
+    subscription.value.nextBillingDate,
+    subscription.value.billingInterval,
+    subscription.value.billingAnchorDay,
+  )
+  return preferences.t('common.perDay', {
+    amount: preferences.formatAmount(Math.round(perDay), subscription.value.currency as never),
+  })
+})
+
+const progress = computed(() => {
+  if (!subscription.value) return { fraction: 0, daysLeft: 0, cycleDays: 1 }
+  return cycleProgress(
+    subscription.value.nextBillingDate,
+    subscription.value.billingInterval,
+    subscription.value.billingAnchorDay,
+    todayDateOnly(),
+  )
+})
+
 async function reload() {
   const id = String(route.params.id ?? '')
   subscription.value = await getSubscription(id)
@@ -59,6 +84,10 @@ onMounted(async () => {
 })
 
 async function goBack() {
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
   await router.push({ name: 'subscriptions' })
 }
 
@@ -146,6 +175,9 @@ async function onDeleteConfirmed() {
           <p class="font-headline text-2xl font-extrabold text-error">
             {{ preferences.formatAmount(subscription.amountMinor, subscription.currency as never) }}
           </p>
+          <p class="text-xs font-bold text-on-surface-variant" data-testid="detail-daily">
+            {{ dailyLabel }}
+          </p>
         </div>
         <div class="rounded-xl border-2 border-surface-container-highest bg-surface-container-low p-4">
           <p class="text-xs font-bold uppercase tracking-wide text-on-surface-variant">
@@ -164,6 +196,29 @@ async function onDeleteConfirmed() {
             </span>
           </p>
         </div>
+      </div>
+
+      <div
+        v-if="subscription.status === 'active'"
+        class="space-y-1"
+        data-testid="detail-progress"
+      >
+        <div
+          class="h-3 overflow-hidden rounded-full border-2 border-surface-container-highest bg-surface-container-low"
+          role="progressbar"
+          :aria-valuenow="Math.round(progress.fraction * 100)"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          :aria-label="`${subscription.name} billing cycle progress`"
+        >
+          <div
+            class="h-full rounded-full bg-primary-container transition-all"
+            :style="{ width: `${Math.round(progress.fraction * 100)}%` }"
+          />
+        </div>
+        <p class="text-xs text-on-surface-variant">
+          {{ preferences.t('common.daysLeft', { n: progress.daysLeft }) }}
+        </p>
       </div>
 
       <div class="space-y-2">

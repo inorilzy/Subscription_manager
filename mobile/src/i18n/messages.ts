@@ -25,6 +25,11 @@ export type MessageKey =
   | 'create.nextBillingDate'
   | 'create.category'
   | 'create.categoryDefault'
+  | 'create.newCategory'
+  | 'create.newCategoryPlaceholder'
+  | 'create.newCategoryAdd'
+  | 'common.perDay'
+  | 'common.daysLeft'
   | 'create.planName'
   | 'create.paymentMethod'
   | 'create.paymentHint'
@@ -128,6 +133,9 @@ const en: Record<MessageKey, string> = {
   'create.nextBillingDate': 'Next Billing Date',
   'create.category': 'Category',
   'create.categoryDefault': 'Other (default)',
+  'create.newCategory': 'New category',
+  'create.newCategoryPlaceholder': 'e.g. Education',
+  'create.newCategoryAdd': 'Add category',
   'create.planName': 'Plan Name',
   'create.paymentMethod': 'Payment Method Label',
   'create.paymentHint':
@@ -190,6 +198,8 @@ const en: Record<MessageKey, string> = {
   'common.daysAgo': '{n} days ago',
   'common.monthly': 'Monthly',
   'common.yearly': 'Yearly',
+  'common.perDay': '{amount}/day',
+  'common.daysLeft': '{n} days left',
   'error.nameRequired': 'Name is required.',
   'error.dateRequired': 'Next billing date is required.',
   'error.dateInvalid': 'Next billing date must be a valid date.',
@@ -231,6 +241,9 @@ const zh: Record<MessageKey, string> = {
   'create.nextBillingDate': '下次扣费日期',
   'create.category': '分类',
   'create.categoryDefault': '其他（默认）',
+  'create.newCategory': '新建分类',
+  'create.newCategoryPlaceholder': '例如：教育',
+  'create.newCategoryAdd': '添加分类',
   'create.planName': '套餐名称',
   'create.paymentMethod': '支付方式标签',
   'create.paymentHint': '仅用于显示。请勿输入完整卡号、CVV 或银行登录信息。',
@@ -290,6 +303,8 @@ const zh: Record<MessageKey, string> = {
   'common.daysAgo': '{n} 天前',
   'common.monthly': '月付',
   'common.yearly': '年付',
+  'common.perDay': '每天 {amount}',
+  'common.daysLeft': '还剩 {n} 天',
   'error.nameRequired': '请填写名称。',
   'error.dateRequired': '请填写下次扣费日期。',
   'error.dateInvalid': '下次扣费日期必须是有效日期。',
