@@ -125,7 +125,7 @@ describe('installable local-first app', () => {
     expect(router.currentRoute.value.name).toBe('settings')
     expect(wrapper.text()).toContain('USD')
     expect(wrapper.text()).toContain('English')
-    expect(wrapper.text()).not.toContain('WebDAV')
+    expect(wrapper.text()).toContain('WebDAV')
     expect(wrapper.text()).not.toContain('SubScout Pro')
     expect(wrapper.text()).not.toContain('Log Out')
   })

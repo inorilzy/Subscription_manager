@@ -73,6 +73,20 @@ export type MessageKey =
   | 'settings.currency'
   | 'settings.language'
   | 'settings.footer'
+  | 'settings.webdav'
+  | 'settings.webdavUrl'
+  | 'settings.webdavUsername'
+  | 'settings.webdavPassword'
+  | 'settings.webdavPath'
+  | 'settings.webdavEnabled'
+  | 'settings.webdavTest'
+  | 'settings.webdavUpload'
+  | 'settings.webdavDownload'
+  | 'settings.webdavSave'
+  | 'settings.webdavHint'
+  | 'settings.webdavTestOk'
+  | 'settings.webdavUploadOk'
+  | 'settings.webdavDownloadConfirm'
   | 'settings.light'
   | 'settings.dark'
   | 'settings.english'
@@ -182,6 +196,22 @@ const en: Record<MessageKey, string> = {
   'settings.language': 'Language',
   'settings.footer':
     'Local preferences only. Cloud accounts and paid upgrades are not part of this MVP.',
+  'settings.webdav': 'WebDAV sync',
+  'settings.webdavUrl': 'Server URL',
+  'settings.webdavUsername': 'Username',
+  'settings.webdavPassword': 'Password',
+  'settings.webdavPath': 'Remote file path',
+  'settings.webdavEnabled': 'Remember and enable WebDAV',
+  'settings.webdavTest': 'Test connection',
+  'settings.webdavUpload': 'Upload backup',
+  'settings.webdavDownload': 'Download & restore',
+  'settings.webdavSave': 'Save WebDAV settings',
+  'settings.webdavHint':
+    'Connects directly to your own WebDAV server. Credentials stay on this device; there is no SubScout cloud backend.',
+  'settings.webdavTestOk': 'Connection successful.',
+  'settings.webdavUploadOk': 'Backup uploaded to WebDAV.',
+  'settings.webdavDownloadConfirm':
+    'Download will replace all local subscriptions and preferences with the remote backup.',
   'settings.light': 'Light',
   'settings.dark': 'Dark',
   'settings.english': 'English',
@@ -287,6 +317,21 @@ const zh: Record<MessageKey, string> = {
   'settings.currency': '货币',
   'settings.language': '语言',
   'settings.footer': '仅本地偏好设置。云账号与付费升级不在本 MVP 范围内。',
+  'settings.webdav': 'WebDAV 同步',
+  'settings.webdavUrl': '服务器地址',
+  'settings.webdavUsername': '用户名',
+  'settings.webdavPassword': '密码',
+  'settings.webdavPath': '远程文件路径',
+  'settings.webdavEnabled': '记住并启用 WebDAV',
+  'settings.webdavTest': '测试连接',
+  'settings.webdavUpload': '上传备份',
+  'settings.webdavDownload': '下载并恢复',
+  'settings.webdavSave': '保存 WebDAV 设置',
+  'settings.webdavHint':
+    '直接连接你自己的 WebDAV 服务器。凭证只保存在本机，没有 SubScout 云后端。',
+  'settings.webdavTestOk': '连接成功。',
+  'settings.webdavUploadOk': '备份已上传到 WebDAV。',
+  'settings.webdavDownloadConfirm': '下载将用远程备份完整替换本机订阅和偏好设置。',
   'settings.light': '浅色',
   'settings.dark': '深色',
   'settings.english': 'English',
