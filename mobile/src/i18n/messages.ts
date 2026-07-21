@@ -205,7 +205,7 @@ const en: Record<MessageKey, string> = {
   'stats.categoriesEmpty': 'Categories will appear after you track subscriptions.',
   'settings.title': 'Settings',
   'settings.appearance': 'Appearance',
-  'settings.currency': 'Default currency for new subscriptions',
+  'settings.currency': 'Default currency',
   'settings.language': 'Language',
   'settings.footer':
     'Local preferences only. Cloud accounts and paid upgrades are not part of this MVP.',
@@ -329,7 +329,7 @@ const zh: Record<MessageKey, string> = {
   'stats.categoriesEmpty': '记录订阅后会显示分类明细。',
   'settings.title': '设置',
   'settings.appearance': '外观',
-  'settings.currency': '新建订阅默认币种',
+  'settings.currency': '默认币种',
   'settings.language': '语言',
   'settings.footer': '仅本地偏好设置。云账号与付费升级不在本 MVP 范围内。',
   'settings.webdav': 'WebDAV 同步',

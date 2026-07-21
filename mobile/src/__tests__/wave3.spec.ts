@@ -185,7 +185,9 @@ describe('reminders and backup', () => {
       amountInput: '5.00',
       nextBillingDate: '2030-08-01',
     })
-    await expect(importBackup({ documentType: 'nope' }, true)).rejects.toThrow()
+    await expect(importBackup({ documentType: 'nope' }, true)).rejects.toThrow(
+      'This file is not a SubScout backup.',
+    )
     expect(await listSubscriptions()).toHaveLength(1)
   })
 

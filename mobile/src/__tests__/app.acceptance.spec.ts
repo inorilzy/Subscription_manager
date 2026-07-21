@@ -108,6 +108,7 @@ describe('installable local-first app', () => {
     expect(wrapper.text()).toContain('概览')
     expect(wrapper.find('[data-testid="nav-overview"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="nav-subscriptions"]').exists()).toBe(true)
+    expect(wrapper.findAll('h1')).toHaveLength(1)
     expect(wrapper.find('[data-testid="nav-stats"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="nav-settings"]').exists()).toBe(true)
 
@@ -120,6 +121,7 @@ describe('installable local-first app', () => {
     expect(router.currentRoute.value.name).toBe('stats')
     expect(wrapper.text()).toContain('本月计划扣费')
     expect(wrapper.text()).toMatch(/¥\s*0\.00|￥\s*0\.00|CNY\s*0\.00/)
+    expect(wrapper.findAll('h1')).toHaveLength(1)
 
     await openDestination(wrapper, 'nav-settings', '/settings')
     expect(router.currentRoute.value.name).toBe('settings')
@@ -266,6 +268,7 @@ describe('theme language currency', () => {
     await wrapper.get('[data-testid="settings-language"]').setValue('en')
     await flushPromises()
     await nextTick()
+    expect(document.documentElement.lang).toBe('en')
     expect(wrapper.text()).toContain('Settings')
     expect(wrapper.text()).toContain('Appearance')
 
@@ -293,6 +296,7 @@ describe('theme language currency', () => {
     expect(wrapper.get('[data-testid="settings-theme"]').element).toHaveProperty('value', 'dark')
     expect(wrapper.get('[data-testid="settings-currency"]').element).toHaveProperty('value', 'USD')
     expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(document.documentElement.lang).toBe('en')
     expect(wrapper.text()).toContain('Settings')
   })
 })
@@ -418,6 +422,10 @@ describe('subscription lifecycle', () => {
     await wrapper.get('[data-testid="subscription-delete"]').trigger('click')
     await flushPromises()
     await nextTick()
+    const deleteDialog = wrapper.get('[data-testid="delete-confirm"]')
+    expect(deleteDialog.attributes('aria-modal')).toBe('true')
+    expect(deleteDialog.attributes('aria-labelledby')).toBe('delete-confirm-title')
+    expect(wrapper.find('#delete-confirm-title').exists()).toBe(true)
     await wrapper.get('[data-testid="delete-confirm-yes"]').trigger('click')
     await flushPromises()
     await nextTick()
@@ -425,6 +433,19 @@ describe('subscription lifecycle', () => {
     expect(router.currentRoute.value.name).toBe('subscriptions')
     expect(wrapper.text()).toContain('还没有订阅')
     expect(wrapper.text()).not.toContain('Netflix Plus')
+  })
+
+  it('does not expose an editable form when the subscription is missing', async () => {
+    const wrapper = await mountApp()
+
+    await router.push({ name: 'subscription-edit', params: { id: 'missing-subscription' } })
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.find('[data-testid="subscription-form"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="subscription-form-error"]').text()).toMatch(
+      /not found|未找到/,
+    )
   })
 })
 

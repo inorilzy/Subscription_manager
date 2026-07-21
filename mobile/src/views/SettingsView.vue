@@ -1,4 +1,14 @@
 <script setup lang="ts">
+import {
+  BellRing,
+  ChevronRight,
+  CircleDollarSign,
+  CloudCog,
+  DatabaseBackup,
+  Languages,
+  Palette,
+  ShieldCheck,
+} from '@lucide/vue'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import {
@@ -14,6 +24,7 @@ import {
   setReminderLeadDays,
 } from '../application/reminders'
 import { listSubscriptions } from '../application/subscriptions'
+import PageTopBar from '../components/PageTopBar.vue'
 import {
   SUPPORTED_CURRENCIES,
   type CurrencyCode,
@@ -158,187 +169,291 @@ function cancelImport() {
 </script>
 
 <template>
-  <section class="space-y-4">
-    <header>
-      <h1 class="font-headline text-3xl font-extrabold text-primary">
-        {{ preferences.t('settings.title') }}
-      </h1>
-    </header>
+  <section class="page">
+    <PageTopBar :title="preferences.t('settings.title')" />
 
-    <div v-if="preferences.loaded" class="tactile-card overflow-hidden">
-      <div class="border-b-2 border-surface-container-highest p-4">
-        <label class="font-bold text-on-surface" for="settings-theme">
-          {{ preferences.t('settings.appearance') }}
-        </label>
-        <select
-          id="settings-theme"
-          data-testid="settings-theme"
-          class="mt-2 w-full rounded-xl border-2 border-surface-container-highest bg-surface-container-lowest px-3 py-3"
-          :value="preferences.theme"
-          @change="onThemeChange"
-        >
-          <option value="system">{{ preferences.t('settings.system') }}</option>
-          <option value="light">{{ preferences.t('settings.light') }}</option>
-          <option value="dark">{{ preferences.t('settings.dark') }}</option>
-        </select>
-      </div>
+    <div v-if="preferences.loaded" class="page-content page-content-settings !gap-6">
+      <section class="space-y-3" aria-labelledby="settings-preferences-heading">
+        <h2 id="settings-preferences-heading" class="section-label">
+          {{ preferences.language === 'zh-CN' ? '偏好设置' : 'Preferences' }}
+        </h2>
 
-      <div class="border-b-2 border-surface-container-highest p-4">
-        <label class="font-bold text-on-surface" for="settings-currency">
-          {{ preferences.t('settings.currency') }}
-        </label>
-        <select
-          id="settings-currency"
-          data-testid="settings-currency"
-          class="mt-2 w-full rounded-xl border-2 border-surface-container-highest bg-surface-container-lowest px-3 py-3"
-          :value="preferences.currency"
-          @change="onCurrencyChange"
-        >
-          <option v-for="code in SUPPORTED_CURRENCIES" :key="code" :value="code">
-            {{ currencyLabel(code) }}
-          </option>
-        </select>
-      </div>
+        <div class="settings-group min-w-0">
+          <div class="settings-row min-w-0 gap-3">
+            <span class="icon-house icon-house-primary" aria-hidden="true">
+              <Palette :size="25" :stroke-width="2.4" />
+            </span>
+            <label class="min-w-0 flex-1 font-headline font-bold text-on-surface" for="settings-theme">
+              {{ preferences.t('settings.appearance') }}
+            </label>
+            <select
+              id="settings-theme"
+              data-testid="settings-theme"
+              class="settings-row-control h-11 w-[7.25rem] max-w-[42%] rounded-xl border-2 border-outline-variant bg-surface-container-low px-2 text-sm font-bold text-on-surface"
+              :value="preferences.theme"
+              @change="onThemeChange"
+            >
+              <option value="system">{{ preferences.t('settings.system') }}</option>
+              <option value="light">{{ preferences.t('settings.light') }}</option>
+              <option value="dark">{{ preferences.t('settings.dark') }}</option>
+            </select>
+          </div>
 
-      <div class="border-b-2 border-surface-container-highest p-4">
-        <label class="font-bold text-on-surface" for="settings-language">
-          {{ preferences.t('settings.language') }}
-        </label>
-        <select
-          id="settings-language"
-          data-testid="settings-language"
-          class="mt-2 w-full rounded-xl border-2 border-surface-container-highest bg-surface-container-lowest px-3 py-3"
-          :value="preferences.language"
-          @change="onLanguageChange"
-        >
-          <option value="en">{{ preferences.t('settings.english') }}</option>
-          <option value="zh-CN">{{ preferences.t('settings.chinese') }}</option>
-        </select>
-      </div>
+          <div class="settings-row min-w-0 gap-3">
+            <span class="icon-house icon-house-tertiary" aria-hidden="true">
+              <CircleDollarSign :size="25" :stroke-width="2.4" />
+            </span>
+            <label class="min-w-0 flex-1 font-headline font-bold text-on-surface" for="settings-currency">
+              {{ preferences.t('settings.currency') }}
+            </label>
+            <select
+              id="settings-currency"
+              data-testid="settings-currency"
+              class="settings-row-control h-11 w-[7.25rem] max-w-[42%] rounded-xl border-2 border-outline-variant bg-surface-container-low px-2 text-sm font-bold text-on-surface"
+              :value="preferences.currency"
+              @change="onCurrencyChange"
+            >
+              <option v-for="code in SUPPORTED_CURRENCIES" :key="code" :value="code">
+                {{ currencyLabel(code) }}
+              </option>
+            </select>
+          </div>
 
-      <div class="border-b-2 border-surface-container-highest p-4 space-y-3">
-        <p class="font-bold text-on-surface">
-          {{ preferences.language === 'zh-CN' ? '扣费提醒' : 'Billing reminders' }}
-        </p>
-        <label class="flex items-center gap-3">
-          <input
-            data-testid="settings-reminders-enabled"
-            type="checkbox"
-            :checked="remindersEnabled"
-            @change="onReminderToggle"
-          />
-          <span>{{ preferences.language === 'zh-CN' ? '启用本地提醒' : 'Enable local reminders' }}</span>
-        </label>
-        <label class="block">
-          <span class="text-sm text-on-surface-variant">
-            {{ preferences.language === 'zh-CN' ? '提前天数' : 'Days before billing' }}
-          </span>
-          <select
-            data-testid="settings-reminder-lead-days"
-            class="mt-2 w-full rounded-xl border-2 border-surface-container-highest bg-surface-container-lowest px-3 py-3"
-            :value="reminderLeadDays"
-            @change="onLeadDaysChange"
-          >
-            <option :value="1">1</option>
-            <option :value="3">3</option>
-            <option :value="7">7</option>
-          </select>
-        </label>
-        <p v-if="permission === 'denied'" class="text-sm text-error" data-testid="reminder-permission-denied">
-          {{
-            preferences.language === 'zh-CN'
-              ? '通知权限被拒绝。请在系统设置中启用后重试。'
-              : 'Notification permission denied. Enable it in system settings, then retry.'
-          }}
-        </p>
-      </div>
-
-      <div class="border-b-2 border-surface-container-highest p-4 space-y-3">
-        <p class="font-bold text-on-surface">
-          {{ preferences.language === 'zh-CN' ? '本地备份' : 'Local backup' }}
-        </p>
-        <p class="text-sm text-on-surface-variant">
-          {{
-            preferences.language === 'zh-CN'
-              ? '导出文件包含敏感订阅信息，请安全保存和分享。'
-              : 'Exported files contain sensitive subscription information. Store and share them carefully.'
-          }}
-        </p>
-        <div class="flex flex-col gap-2">
-          <button type="button" class="tactile-btn px-4 py-3" data-testid="settings-export" @click="onExport">
-            {{ preferences.language === 'zh-CN' ? '导出备份' : 'Export backup' }}
-          </button>
-          <label class="tactile-btn cursor-pointer px-4 py-3 text-center">
-            {{ preferences.language === 'zh-CN' ? '导入备份' : 'Import backup' }}
-            <input
-              data-testid="settings-import"
-              type="file"
-              accept="application/json,.json"
-              class="hidden"
-              @change="onImportFile"
-            />
-          </label>
+          <div class="settings-row min-w-0 gap-3">
+            <span class="icon-house icon-house-secondary" aria-hidden="true">
+              <Languages :size="25" :stroke-width="2.4" />
+            </span>
+            <label class="min-w-0 flex-1 font-headline font-bold text-on-surface" for="settings-language">
+              {{ preferences.t('settings.language') }}
+            </label>
+            <select
+              id="settings-language"
+              data-testid="settings-language"
+              class="settings-row-control h-11 w-[7.25rem] max-w-[42%] rounded-xl border-2 border-outline-variant bg-surface-container-low px-2 text-sm font-bold text-on-surface"
+              :value="preferences.language"
+              @change="onLanguageChange"
+            >
+              <option value="en">{{ preferences.t('settings.english') }}</option>
+              <option value="zh-CN">{{ preferences.t('settings.chinese') }}</option>
+            </select>
+          </div>
         </div>
-        <pre
-          v-if="lastExportJson"
-          data-testid="settings-export-json"
-          class="max-h-40 overflow-auto rounded-xl bg-surface-container-low p-3 text-xs"
-        >{{ lastExportJson }}</pre>
+      </section>
+
+      <section class="space-y-3" aria-labelledby="settings-reminders-heading">
+        <h2 id="settings-reminders-heading" class="section-label">
+          {{ preferences.language === 'zh-CN' ? '通知' : 'Notifications' }}
+        </h2>
+
+        <div class="settings-group min-w-0">
+          <div class="settings-row min-w-0 items-start gap-3">
+            <span class="icon-house icon-house-secondary" aria-hidden="true">
+              <BellRing :size="25" :stroke-width="2.4" />
+            </span>
+            <div class="min-w-0 flex-1">
+              <label class="flex min-h-11 min-w-0 items-center justify-between gap-3">
+                <span class="min-w-0">
+                  <span class="block font-headline font-bold text-on-surface">
+                    {{ preferences.language === 'zh-CN' ? '扣费提醒' : 'Billing reminders' }}
+                  </span>
+                  <span class="mt-1 block text-sm leading-5 text-on-surface-variant">
+                    {{ preferences.language === 'zh-CN' ? '启用本地提醒' : 'Enable local reminders' }}
+                  </span>
+                </span>
+                <span class="relative inline-flex h-8 w-14 shrink-0">
+                  <input
+                    data-testid="settings-reminders-enabled"
+                    type="checkbox"
+                    role="switch"
+                    class="peer sr-only"
+                    :checked="remindersEnabled"
+                    @change="onReminderToggle"
+                  />
+                  <span
+                    class="pointer-events-none absolute inset-0 rounded-full border-2 border-b-4 border-outline-variant bg-surface-container-high transition-colors peer-checked:border-primary peer-checked:bg-primary-container peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2"
+                    aria-hidden="true"
+                  ></span>
+                  <span
+                    class="pointer-events-none absolute top-1 left-1 size-5 rounded-full transition-all"
+                    :class="
+                      remindersEnabled
+                        ? 'translate-x-6 bg-on-primary-container'
+                        : 'translate-x-0 bg-surface-container-lowest'
+                    "
+                    aria-hidden="true"
+                  ></span>
+                </span>
+              </label>
+
+              <label
+                class="mt-4 flex min-w-0 items-center gap-3 rounded-xl border-2 border-surface-container-highest bg-surface-container-low p-3"
+              >
+                <span class="min-w-0 flex-1 text-sm font-bold text-on-surface-variant">
+                  {{ preferences.language === 'zh-CN' ? '提前天数' : 'Days before billing' }}
+                </span>
+                <select
+                  data-testid="settings-reminder-lead-days"
+                  class="h-10 w-[4.5rem] shrink-0 rounded-xl border-2 border-outline-variant bg-surface-container-lowest px-2 text-sm font-bold text-on-surface"
+                  :value="reminderLeadDays"
+                  @change="onLeadDaysChange"
+                >
+                  <option :value="1">1</option>
+                  <option :value="3">3</option>
+                  <option :value="7">7</option>
+                </select>
+              </label>
+
+              <p
+                v-if="permission === 'denied'"
+                class="mt-3 rounded-xl bg-error-container p-3 text-sm font-bold text-on-error-container"
+                data-testid="reminder-permission-denied"
+              >
+                {{
+                  preferences.language === 'zh-CN'
+                    ? '通知权限被拒绝。请在系统设置中启用后重试。'
+                    : 'Notification permission denied. Enable it in system settings, then retry.'
+                }}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="space-y-3" aria-labelledby="settings-data-heading">
+        <h2 id="settings-data-heading" class="section-label">
+          {{ preferences.language === 'zh-CN' ? '数据与同步' : 'Data & sync' }}
+        </h2>
+
+        <div class="settings-group min-w-0">
+          <div class="settings-row min-w-0 items-start gap-3">
+            <span class="icon-house icon-house-primary" aria-hidden="true">
+              <DatabaseBackup :size="25" :stroke-width="2.4" />
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="font-headline font-bold text-on-surface">
+                {{ preferences.language === 'zh-CN' ? '本地备份' : 'Local backup' }}
+              </p>
+              <p class="mt-1 text-sm leading-5 text-on-surface-variant">
+                {{
+                  preferences.language === 'zh-CN'
+                    ? '导出文件包含敏感订阅信息，请安全保存和分享。'
+                    : 'Exported files contain sensitive subscription information. Store and share them carefully.'
+                }}
+              </p>
+
+              <div class="mt-4 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
+                <button
+                  type="button"
+                  class="tactile-btn-secondary min-w-0 px-2 py-2 text-sm leading-4"
+                  data-testid="settings-export"
+                  @click="onExport"
+                >
+                  {{ preferences.language === 'zh-CN' ? '导出备份' : 'Export backup' }}
+                </button>
+                <label
+                  class="tactile-btn-secondary min-w-0 cursor-pointer px-2 py-2 text-center text-sm leading-4"
+                >
+                  {{ preferences.language === 'zh-CN' ? '导入备份' : 'Import backup' }}
+                  <input
+                    data-testid="settings-import"
+                    type="file"
+                    accept="application/json,.json"
+                    class="hidden"
+                    @change="onImportFile"
+                  />
+                </label>
+              </div>
+
+              <p
+                v-if="backupMessage"
+                class="mt-3 rounded-xl bg-surface-container-low p-3 text-sm text-on-surface"
+                data-testid="backup-message"
+                role="status"
+              >
+                {{ backupMessage }}
+              </p>
+
+              <pre
+                v-if="lastExportJson"
+                data-testid="settings-export-json"
+                class="mt-3 max-h-40 max-w-full overflow-auto whitespace-pre-wrap break-all rounded-xl bg-surface-container-low p-3 text-xs text-on-surface"
+              >{{ lastExportJson }}</pre>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="settings-row min-w-0 w-full gap-3 text-left"
+            data-testid="open-webdav-settings"
+            @click="openWebDav"
+          >
+            <span class="icon-house icon-house-tertiary" aria-hidden="true">
+              <CloudCog :size="25" :stroke-width="2.4" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block font-headline font-bold text-on-surface">
+                {{ preferences.t('settings.webdav') }}
+              </span>
+              <span class="mt-1 block text-sm leading-5 text-on-surface-variant">
+                {{ preferences.t('settings.webdavHint') }}
+              </span>
+            </span>
+            <ChevronRight
+              :size="24"
+              :stroke-width="2.5"
+              class="shrink-0 text-on-surface-variant"
+              aria-hidden="true"
+            />
+          </button>
+        </div>
+      </section>
+
+      <div class="flex items-start gap-2 px-2 text-sm leading-5 text-on-surface-variant">
+        <ShieldCheck :size="19" :stroke-width="2.4" class="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+        <p>{{ preferences.t('settings.footer') }}</p>
       </div>
-      <div class="p-4">
-        <button
-          type="button"
-          class="flex w-full items-center justify-between rounded-xl border-2 border-surface-container-highest px-4 py-3 text-left"
-          data-testid="open-webdav-settings"
-          @click="openWebDav"
-        >
-          <span>
-            <span class="block font-bold text-on-surface">{{ preferences.t('settings.webdav') }}</span>
-            <span class="block text-sm text-on-surface-variant">{{ preferences.t('settings.webdavHint') }}</span>
+
+      <div
+        v-if="showImportConfirm"
+        class="tactile-card space-y-4 border-error/40 p-5"
+        role="dialog"
+        data-testid="import-confirm"
+      >
+        <div class="flex items-start gap-3">
+          <span class="icon-house border-error bg-error-container text-on-error-container" aria-hidden="true">
+            <DatabaseBackup :size="24" :stroke-width="2.5" />
           </span>
-          <span class="font-bold text-primary">›</span>
-        </button>
-      </div>
-    </div>
-
-    <p class="text-sm text-on-surface-variant">{{ preferences.t('settings.footer') }}</p>
-    <p v-if="backupMessage" class="text-sm text-on-surface" data-testid="backup-message" role="status">
-      {{ backupMessage }}
-    </p>
-
-    <div
-      v-if="showImportConfirm"
-      class="tactile-card space-y-3 border-error/40 p-5"
-      role="dialog"
-      data-testid="import-confirm"
-    >
-      <h2 class="font-headline text-xl font-bold">
-        {{ preferences.language === 'zh-CN' ? '替换现有数据？' : 'Replace current data?' }}
-      </h2>
-      <p class="text-on-surface-variant">
-        {{
-          preferences.language === 'zh-CN'
-            ? '恢复将完整替换当前订阅和偏好设置。'
-            : 'Restore replaces all current subscriptions and preferences.'
-        }}
-      </p>
-      <div class="flex gap-3">
-        <button
-          type="button"
-          class="flex-1 rounded-xl border-2 border-surface-container-highest px-4 py-3 font-bold"
-          data-testid="import-confirm-cancel"
-          @click="cancelImport"
-        >
-          {{ preferences.t('settings.currencyCancel') }}
-        </button>
-        <button
-          type="button"
-          class="tactile-btn flex-1 px-4 py-3"
-          data-testid="import-confirm-yes"
-          @click="confirmImport"
-        >
-          {{ preferences.language === 'zh-CN' ? '确认恢复' : 'Restore' }}
-        </button>
+          <div class="min-w-0">
+            <h2 class="font-headline text-xl font-bold text-on-surface">
+              {{ preferences.language === 'zh-CN' ? '替换现有数据？' : 'Replace current data?' }}
+            </h2>
+            <p class="mt-1 text-sm text-on-surface-variant">
+              {{
+                preferences.language === 'zh-CN'
+                  ? '恢复将完整替换当前订阅和偏好设置。'
+                  : 'Restore replaces all current subscriptions and preferences.'
+              }}
+            </p>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            class="tactile-btn-secondary min-w-0 px-2 py-3"
+            data-testid="import-confirm-cancel"
+            @click="cancelImport"
+          >
+            {{ preferences.t('settings.currencyCancel') }}
+          </button>
+          <button
+            type="button"
+            class="tactile-btn min-w-0 px-2 py-3"
+            data-testid="import-confirm-yes"
+            @click="confirmImport"
+          >
+            {{ preferences.language === 'zh-CN' ? '确认恢复' : 'Restore' }}
+          </button>
+        </div>
       </div>
     </div>
   </section>

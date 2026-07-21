@@ -119,11 +119,11 @@ export const defaultWebDavTransport: WebDavTransport = {
       return { status: response.status, data: body }
     }
 
-    const response = await fetch(url, {
-      method,
-      headers,
-      body: data,
-    })
+    const requestInit: RequestInit = { method, headers }
+    if (data !== undefined && method !== 'GET' && method !== 'HEAD') {
+      requestInit.body = data
+    }
+    const response = await fetch(url, requestInit)
     const text = await response.text()
     return { status: response.status, data: text }
   },

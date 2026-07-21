@@ -41,6 +41,12 @@ export const usePreferencesStore = defineStore('preferences', () => {
     return formatMoney(minor, currencyCode, locale.value)
   }
 
+  function paintLanguage(next: LanguageCode) {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = next
+    }
+  }
+
   function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
     if (mode === 'system') return systemPrefersDark() ? 'dark' : 'light'
     return mode
@@ -81,6 +87,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
       getPreference('currency', 'CNY'),
     ])
     language.value = isLanguageCode(langRaw) ? langRaw : 'zh-CN'
+    paintLanguage(language.value)
     theme.value = isThemeMode(themeRaw) ? themeRaw : 'system'
     currency.value = isCurrencyCode(currencyRaw) ? currencyRaw : 'CNY'
     applyTheme(theme.value)
@@ -90,6 +97,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
 
   async function setLanguage(next: LanguageCode): Promise<void> {
     language.value = next
+    paintLanguage(next)
     await setPreference('language', next)
   }
 

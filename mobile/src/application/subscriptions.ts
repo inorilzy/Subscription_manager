@@ -1,4 +1,4 @@
-import { getDatabase, getPreference } from '../database/client'
+import { getDatabase } from '../database/client'
 import { reconcileNotifications } from './reminders'
 import { advanceNextBillingDate, anchorDayFromDate } from '../domain/billing'
 import { todayDateOnly } from '../domain/clock'

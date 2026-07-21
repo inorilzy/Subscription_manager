@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { App as CapacitorApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
 import AppBottomNav from './components/AppBottomNav.vue'
 import { reconcileNotifications } from './application/reminders'
@@ -13,6 +13,12 @@ const ready = ref(false)
 const bootError = ref<string | null>(null)
 const preferences = usePreferencesStore()
 const router = useRouter()
+
+const showBottomNav = computed(() =>
+  ['overview', 'subscriptions', 'stats', 'settings'].includes(
+    String(router.currentRoute.value.name ?? ''),
+  ),
+)
 
 let removeBackListener: (() => void) | null = null
 
@@ -52,17 +58,21 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="app-shell" :data-theme="preferences.resolvedTheme">
+  <div
+    class="app-shell"
+    :class="{ 'app-shell--with-nav': showBottomNav }"
+    :data-theme="preferences.resolvedTheme"
+  >
     <div v-if="bootError" class="p-4 text-error" role="alert">
       {{ bootError }}
     </div>
 
     <template v-else-if="ready">
-      <div data-testid="app-ready" class="flex min-h-0 flex-1 flex-col">
-        <main class="flex-1 px-4 pt-4">
+      <div data-testid="app-ready" class="app-main">
+        <main class="app-main">
           <RouterView />
         </main>
-        <AppBottomNav />
+        <AppBottomNav v-show="showBottomNav" />
       </div>
     </template>
 
