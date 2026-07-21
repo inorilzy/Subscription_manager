@@ -37,8 +37,8 @@ export function parseAmountToMinor(input: string): number {
 /** Format integer minor units with the app currency and locale. */
 export function formatMinorAmount(
   minor: number,
-  currency = 'USD',
-  locale = 'en-US',
+  currency = 'CNY',
+  locale = 'zh-CN',
 ): string {
   const major = minor / 100
   try {

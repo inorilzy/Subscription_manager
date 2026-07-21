@@ -409,11 +409,11 @@ export async function migrate(client: DatabaseClient): Promise<void> {
 
   await client.execute('INSERT OR IGNORE INTO preferences (key, value) VALUES (?, ?)', [
     'currency',
-    'USD',
+    'CNY',
   ])
   await client.execute('INSERT OR IGNORE INTO preferences (key, value) VALUES (?, ?)', [
     'language',
-    'en',
+    'zh-CN',
   ])
   await client.execute('INSERT OR IGNORE INTO preferences (key, value) VALUES (?, ?)', [
     'theme',

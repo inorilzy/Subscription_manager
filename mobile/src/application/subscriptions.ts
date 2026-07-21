@@ -93,7 +93,7 @@ function validateCreateInput(input: CreateSubscriptionInput): {
 
   const planName = input.planName?.trim() || null
   const category = normalizeCategory(input.category)
-  const currency = input.currency?.trim() || 'USD'
+  const currency = input.currency?.trim() || 'CNY'
   const billingInterval = normalizeBillingInterval(input.billingInterval)
   const billingAnchorDay = anchorDayFromDate(nextBillingDate)
 
@@ -156,7 +156,7 @@ export async function createSubscription(
 ): Promise<Subscription> {
   const validated = validateCreateInput(input)
   const currency =
-    input.currency?.trim() || (await getPreference('currency', 'USD'))
+    input.currency?.trim() || (await getPreference('currency', 'CNY'))
 
   const now = new Date().toISOString()
   const subscription: Subscription = {

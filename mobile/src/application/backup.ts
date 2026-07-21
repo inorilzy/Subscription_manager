@@ -41,7 +41,18 @@ export async function exportBackup(): Promise<BackupDocument> {
   const keys = ['currency', 'language', 'theme', 'reminders_enabled', 'reminder_lead_days']
   const preferences: Record<string, string> = {}
   for (const key of keys) {
-    preferences[key] = await getPreference(key, key === 'reminders_enabled' ? '0' : key === 'reminder_lead_days' ? '3' : key === 'currency' ? 'USD' : key === 'language' ? 'en' : 'light')
+    preferences[key] = await getPreference(
+      key,
+      key === 'reminders_enabled'
+        ? '0'
+        : key === 'reminder_lead_days'
+          ? '3'
+          : key === 'currency'
+            ? 'CNY'
+            : key === 'language'
+              ? 'zh-CN'
+              : 'light',
+    )
   }
 
   return {
@@ -112,7 +123,7 @@ export async function importBackup(raw: unknown, confirmed: boolean): Promise<vo
         String(row.id),
         String(row.name),
         Number(row.amount_minor),
-        String(row.currency ?? 'USD'),
+        String(row.currency ?? 'CNY'),
         String(row.billing_interval),
         Number(row.billing_anchor_day ?? 1),
         String(row.next_billing_date),

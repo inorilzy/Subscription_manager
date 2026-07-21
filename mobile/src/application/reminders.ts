@@ -118,8 +118,8 @@ export async function reconcileNotifications(subscriptions: Subscription[]): Pro
     await adapter.cancelAll()
     return
   }
-  const languageRaw = await getPreference('language', 'en')
-  const language = isLanguageCode(languageRaw) ? languageRaw : 'en'
+  const languageRaw = await getPreference('language', 'zh-CN')
+  const language = isLanguageCode(languageRaw) ? languageRaw : 'zh-CN'
   const planned = planNotifications(subscriptions, {
     leadDays: settings.leadDays,
     language,

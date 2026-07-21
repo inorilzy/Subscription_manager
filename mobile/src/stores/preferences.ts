@@ -15,9 +15,9 @@ import {
 import { formatMinorAmount as formatMoney } from '../domain/money'
 
 export const usePreferencesStore = defineStore('preferences', () => {
-  const language = ref<LanguageCode>('en')
+  const language = ref<LanguageCode>('zh-CN')
   const theme = ref<ThemeMode>('light')
-  const currency = ref<CurrencyCode>('USD')
+  const currency = ref<CurrencyCode>('CNY')
   const loaded = ref(false)
 
   const locale = computed(() => localeForLanguage(language.value))
@@ -39,13 +39,13 @@ export const usePreferencesStore = defineStore('preferences', () => {
 
   async function load(): Promise<void> {
     const [langRaw, themeRaw, currencyRaw] = await Promise.all([
-      getPreference('language', 'en'),
+      getPreference('language', 'zh-CN'),
       getPreference('theme', 'light'),
-      getPreference('currency', 'USD'),
+      getPreference('currency', 'CNY'),
     ])
-    language.value = isLanguageCode(langRaw) ? langRaw : 'en'
+    language.value = isLanguageCode(langRaw) ? langRaw : 'zh-CN'
     theme.value = isThemeMode(themeRaw) ? themeRaw : 'light'
-    currency.value = isCurrencyCode(currencyRaw) ? currencyRaw : 'USD'
+    currency.value = isCurrencyCode(currencyRaw) ? currencyRaw : 'CNY'
     applyTheme(theme.value)
     loaded.value = true
   }

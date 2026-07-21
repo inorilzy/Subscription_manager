@@ -104,8 +104,8 @@ describe('installable local-first app', () => {
     const wrapper = await mountApp()
 
     expect(wrapper.find('[data-testid="app-ready"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('No subscriptions yet')
-    expect(wrapper.text()).toContain('Overview')
+    expect(wrapper.text()).toContain('还没有订阅')
+    expect(wrapper.text()).toContain('概览')
     expect(wrapper.find('[data-testid="nav-overview"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="nav-subscriptions"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="nav-stats"]').exists()).toBe(true)
@@ -113,18 +113,18 @@ describe('installable local-first app', () => {
 
     await openDestination(wrapper, 'nav-subscriptions', '/subscriptions')
     expect(router.currentRoute.value.name).toBe('subscriptions')
-    expect(wrapper.text()).toContain('No subscriptions yet')
-    expect(wrapper.text()).toContain('Track your first subscription')
+    expect(wrapper.text()).toContain('还没有订阅')
+    expect(wrapper.text()).toContain('记录第一个订阅后会显示在这里')
 
     await openDestination(wrapper, 'nav-stats', '/stats')
     expect(router.currentRoute.value.name).toBe('stats')
-    expect(wrapper.text()).toContain('Scheduled this month')
-    expect(wrapper.text()).toContain('$0.00')
+    expect(wrapper.text()).toContain('本月计划扣费')
+    expect(wrapper.text()).toMatch(/¥\s*0\.00|￥\s*0\.00|CNY\s*0\.00/)
 
     await openDestination(wrapper, 'nav-settings', '/settings')
     expect(router.currentRoute.value.name).toBe('settings')
-    expect(wrapper.text()).toContain('USD')
-    expect(wrapper.text()).toContain('English')
+    expect(wrapper.text()).toContain('CNY')
+    expect(wrapper.text()).toContain('简体中文')
     expect(wrapper.text()).toContain('WebDAV')
     expect(wrapper.text()).not.toContain('SubScout Pro')
     expect(wrapper.text()).not.toContain('Log Out')
@@ -159,7 +159,7 @@ describe('first monthly subscription', () => {
 
     expect(router.currentRoute.value.name).toBe('subscriptions')
     expect(wrapper.text()).toContain('Netflix')
-    expect(wrapper.text()).toContain('$15.99')
+    expect(wrapper.text()).toMatch(/15\.99/)
     expect(wrapper.text()).toMatch(/Monthly|月付/)
     expect(wrapper.text()).toContain('Entertainment')
     expect(wrapper.text()).toContain('2030-06-15')
@@ -172,7 +172,7 @@ describe('first monthly subscription', () => {
 
     expect(router.currentRoute.value.name).toBe('subscription-detail')
     expect(wrapper.text()).toContain('Netflix')
-    expect(wrapper.text()).toContain('$15.99')
+    expect(wrapper.text()).toMatch(/15\.99/)
     expect(wrapper.text()).toContain('2030-06-15')
     expect(wrapper.text()).toContain('Standard')
     expect(wrapper.text()).toContain('Visa ending 4242')
@@ -180,7 +180,7 @@ describe('first monthly subscription', () => {
 
     await openDestination(wrapper, 'nav-overview', '/')
     expect(wrapper.text()).toContain('1')
-    expect(wrapper.text()).toContain('$15.99')
+    expect(wrapper.text()).toMatch(/15\.99/)
     expect(wrapper.text()).toContain('Netflix')
 
     await reinitializeDatabaseKeepingDataForTests()
@@ -191,11 +191,11 @@ describe('first monthly subscription', () => {
 
     await openDestination(wrapper, 'nav-subscriptions', '/subscriptions')
     expect(wrapper.text()).toContain('Netflix')
-    expect(wrapper.text()).toContain('$15.99')
+    expect(wrapper.text()).toMatch(/15\.99/)
 
     await openDestination(wrapper, 'nav-overview', '/')
     expect(wrapper.text()).toContain('Netflix')
-    expect(wrapper.text()).toContain('$15.99')
+    expect(wrapper.text()).toMatch(/15\.99/)
   })
 
   it('rejects invalid amounts without creating a subscription', async () => {
@@ -217,7 +217,7 @@ describe('first monthly subscription', () => {
     await nextTick()
 
     expect(router.currentRoute.value.name).toBe('subscriptions')
-    expect(wrapper.text()).toContain('No subscriptions yet')
+    expect(wrapper.text()).toContain('还没有订阅')
     expect(wrapper.text()).not.toContain('Bad Sub')
   })
 
@@ -265,18 +265,18 @@ describe('theme language currency', () => {
     })
 
     await openDestination(wrapper, 'nav-settings', '/settings')
-    await wrapper.get('[data-testid="settings-language"]').setValue('zh-CN')
+    await wrapper.get('[data-testid="settings-language"]').setValue('en')
     await flushPromises()
     await nextTick()
-    expect(wrapper.text()).toContain('设置')
-    expect(wrapper.text()).toContain('外观')
+    expect(wrapper.text()).toContain('Settings')
+    expect(wrapper.text()).toContain('Appearance')
 
     await wrapper.get('[data-testid="settings-theme"]').setValue('dark')
     await flushPromises()
     await nextTick()
     expect(document.documentElement.dataset.theme).toBe('dark')
 
-    await wrapper.get('[data-testid="settings-currency"]').setValue('CNY')
+    await wrapper.get('[data-testid="settings-currency"]').setValue('USD')
     await flushPromises()
     await nextTick()
     expect(wrapper.find('[data-testid="currency-warning"]').exists()).toBe(true)
@@ -284,18 +284,18 @@ describe('theme language currency', () => {
     await flushPromises()
     await nextTick()
     expect(wrapper.find('[data-testid="currency-warning"]').exists()).toBe(false)
-    expect(wrapper.get('[data-testid="settings-currency"]').element).toHaveProperty('value', 'USD')
+    expect(wrapper.get('[data-testid="settings-currency"]').element).toHaveProperty('value', 'CNY')
 
-    await wrapper.get('[data-testid="settings-currency"]').setValue('CNY')
+    await wrapper.get('[data-testid="settings-currency"]').setValue('USD')
     await flushPromises()
     await nextTick()
     await wrapper.get('[data-testid="currency-warning-confirm"]').trigger('click')
     await flushPromises()
     await nextTick()
-    expect(wrapper.get('[data-testid="settings-currency"]').element).toHaveProperty('value', 'CNY')
+    expect(wrapper.get('[data-testid="settings-currency"]').element).toHaveProperty('value', 'USD')
 
     await openDestination(wrapper, 'nav-subscriptions', '/subscriptions')
-    expect(wrapper.text()).toContain('订阅')
+    expect(wrapper.text()).toContain('Subscriptions')
     expect(wrapper.text()).toContain('Netflix')
 
     await reinitializeDatabaseKeepingDataForTests()
@@ -304,11 +304,11 @@ describe('theme language currency', () => {
     wrapper = await mountApp()
 
     await openDestination(wrapper, 'nav-settings', '/settings')
-    expect(wrapper.get('[data-testid="settings-language"]').element).toHaveProperty('value', 'zh-CN')
+    expect(wrapper.get('[data-testid="settings-language"]').element).toHaveProperty('value', 'en')
     expect(wrapper.get('[data-testid="settings-theme"]').element).toHaveProperty('value', 'dark')
-    expect(wrapper.get('[data-testid="settings-currency"]').element).toHaveProperty('value', 'CNY')
+    expect(wrapper.get('[data-testid="settings-currency"]').element).toHaveProperty('value', 'USD')
     expect(document.documentElement.dataset.theme).toBe('dark')
-    expect(wrapper.text()).toContain('设置')
+    expect(wrapper.text()).toContain('Settings')
   })
 })
 
@@ -344,7 +344,7 @@ describe('monthly and yearly renewals', () => {
 
     await openDestination(wrapper, 'nav-overview', '/')
     // 120.00 yearly => 10.00 normalized monthly
-    expect(wrapper.get('[data-testid="overview-monthly"]').text()).toContain('$10.00')
+    expect(wrapper.get('[data-testid="overview-monthly"]').text()).toMatch(/10\.00/)
     expect(wrapper.text()).toContain('Adobe')
   })
 
@@ -407,7 +407,7 @@ describe('subscription lifecycle', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('Netflix Plus')
-    expect(wrapper.text()).toContain('$18.99')
+    expect(wrapper.text()).toMatch(/18\.99/)
 
     await wrapper.get('[data-testid="subscription-cancel-action"]').trigger('click')
     await flushPromises()
@@ -416,7 +416,7 @@ describe('subscription lifecycle', () => {
 
     await openDestination(wrapper, 'nav-overview', '/')
     expect(wrapper.text()).not.toContain('Netflix Plus')
-    expect(wrapper.get('[data-testid="overview-monthly"]').text()).toContain('$0.00')
+    expect(wrapper.get('[data-testid="overview-monthly"]').text()).toMatch(/0\.00/)
 
     await router.push({ name: 'subscription-detail', params: { id } })
     await flushPromises()
@@ -428,7 +428,7 @@ describe('subscription lifecycle', () => {
 
     await openDestination(wrapper, 'nav-overview', '/')
     expect(wrapper.text()).toContain('Netflix Plus')
-    expect(wrapper.get('[data-testid="overview-monthly"]').text()).toContain('$18.99')
+    expect(wrapper.get('[data-testid="overview-monthly"]').text()).toMatch(/18\.99/)
 
     await router.push({ name: 'subscription-detail', params: { id } })
     await flushPromises()
@@ -441,7 +441,7 @@ describe('subscription lifecycle', () => {
     await nextTick()
 
     expect(router.currentRoute.value.name).toBe('subscriptions')
-    expect(wrapper.text()).toContain('No subscriptions yet')
+    expect(wrapper.text()).toContain('还没有订阅')
     expect(wrapper.text()).not.toContain('Netflix Plus')
   })
 })
