@@ -11,7 +11,7 @@ import {
   SUPPORTED_CURRENCIES,
   type CurrencyCode,
 } from '../domain/money'
-import { ValidationError } from '../domain/subscription'
+import { DEFAULT_CATEGORY, ValidationError } from '../domain/subscription'
 import type { SubscriptionIconKey } from '../domain/subscription-icons'
 import { usePreferencesStore } from '../stores/preferences'
 
@@ -88,7 +88,7 @@ onMounted(async () => {
   amount.value = majorInputFromMinor(existing.amountMinor, existing.currency)
   currency.value = (existing.currency as CurrencyCode) || preferences.currency
   nextBillingDate.value = existing.nextBillingDate
-  category.value = existing.category === 'Other' ? '' : existing.category
+  category.value = existing.category === DEFAULT_CATEGORY ? '' : existing.category
   planName.value = existing.planName ?? ''
   paymentMethodLabel.value = existing.paymentMethodLabel ?? ''
   iconKey.value = existing.iconKey
@@ -190,7 +190,11 @@ async function onCancel() {
           />
         </div>
 
-        <SubscriptionIconPicker v-model="iconKey" :name="name" :category="category || 'Other'" />
+        <SubscriptionIconPicker
+          v-model="iconKey"
+          :name="name"
+          :category="category || DEFAULT_CATEGORY"
+        />
 
         <div class="grid gap-5 sm:grid-cols-2">
           <div class="space-y-2">
@@ -302,7 +306,7 @@ async function onCancel() {
           >
             <option value="">{{ preferences.t('create.categoryDefault') }}</option>
             <option
-              v-for="item in categories.filter((c) => c !== 'Other')"
+              v-for="item in categories.filter((c) => c !== DEFAULT_CATEGORY)"
               :key="item"
               :value="item"
             >

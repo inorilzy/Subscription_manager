@@ -18,7 +18,7 @@ export interface DatabaseClient {
   close(): Promise<void>
 }
 
-const SCHEMA_VERSION = 2
+const SCHEMA_VERSION = 3
 const DB_NAME = 'subscout'
 
 const CREATE_STATEMENTS = [
@@ -57,6 +57,16 @@ const MIGRATIONS = [
     statements: [
       `ALTER TABLE subscriptions ADD COLUMN icon_key TEXT NOT NULL DEFAULT 'auto'`,
       `ALTER TABLE subscriptions ADD COLUMN account_label TEXT`,
+    ],
+  },
+  {
+    version: 3,
+    statements: [
+      `UPDATE subscriptions
+       SET category = 'Default',
+           updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+           version = version + 1
+       WHERE category = 'Other'`,
     ],
   },
 ] as const
@@ -263,6 +273,32 @@ class MemoryDatabase implements DatabaseClient {
         return
       }
 
+      if (sql.includes('SET category = ?') && sql.includes('LOWER(category) = LOWER(?)')) {
+        const [category, updatedAt, target] = params
+        for (const row of rows) {
+          if (
+            row.deleted_at == null &&
+            String(row.category).toLocaleLowerCase() === String(target).toLocaleLowerCase()
+          ) {
+            row.category = category
+            row.updated_at = updatedAt
+            row.version = Number(row.version ?? 1) + 1
+          }
+        }
+        return
+      }
+
+      if (sql.includes("SET category = 'Default'") && sql.includes("category = 'Other'")) {
+        for (const row of rows) {
+          if (row.category === 'Other') {
+            row.category = 'Default'
+            row.updated_at = new Date().toISOString()
+            row.version = Number(row.version ?? 1) + 1
+          }
+        }
+        return
+      }
+
       // advance: SET next_billing_date = ?, updated_at = ?, version = version + 1 WHERE id = ?
       const nextBillingDate = params[0]
       const updatedAt = params[1]
@@ -305,6 +341,11 @@ class MemoryDatabase implements DatabaseClient {
 
       if (sql.includes('deleted_at IS NULL')) {
         rows = rows.filter((row) => row.deleted_at == null)
+      }
+
+      if (sql.includes('LOWER(category) = LOWER(?)')) {
+        const target = String(params[0]).toLocaleLowerCase()
+        rows = rows.filter((row) => String(row.category).toLocaleLowerCase() === target)
       }
 
       if (sql.includes("status = 'active'") || sql.includes('status = ?')) {

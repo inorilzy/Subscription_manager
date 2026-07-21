@@ -3,18 +3,11 @@ import type { SubscriptionIconKey } from './subscription-icons'
 
 export type BillingInterval = 'monthly' | 'yearly'
 export type SubscriptionStatus = 'active' | 'cancelled'
-/** Built-in categories ship fixed; users may add custom display categories. */
+/** Default is protected; every other category is user-managed display text. */
 export type SubscriptionCategory = string
 
-export const BUILTIN_CATEGORIES = [
-  'Entertainment',
-  'Music',
-  'Productivity',
-  'Utilities',
-  'Health',
-  'Other',
-] as const
-
+export const DEFAULT_CATEGORY = 'Default'
+export const BUILTIN_CATEGORIES = [DEFAULT_CATEGORY] as const
 export const SUBSCRIPTION_CATEGORIES: SubscriptionCategory[] = [...BUILTIN_CATEGORIES]
 
 const MAX_CATEGORY_LENGTH = 24
@@ -127,8 +120,11 @@ export function parseDateOnly(value: string): Date {
 
 export function normalizeCategory(value?: string | null): SubscriptionCategory {
   const trimmed = value?.trim()
-  if (!trimmed) return 'Other'
-  return isValidCategoryName(trimmed) ? trimmed : 'Other'
+  if (!trimmed) return DEFAULT_CATEGORY
+  if (trimmed.toLowerCase() === DEFAULT_CATEGORY.toLowerCase()) return DEFAULT_CATEGORY
+  // `Other` was the pre-v3 fallback and is retired in favor of Default.
+  if (trimmed.toLowerCase() === 'other') return DEFAULT_CATEGORY
+  return isValidCategoryName(trimmed) ? trimmed : DEFAULT_CATEGORY
 }
 
 export function normalizeBillingInterval(value?: string | null): BillingInterval {

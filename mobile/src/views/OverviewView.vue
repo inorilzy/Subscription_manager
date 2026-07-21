@@ -3,6 +3,7 @@ import { Plus } from '@lucide/vue'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getOverviewSnapshot } from '../application/subscriptions'
+import BillingProgressBar from '../components/BillingProgressBar.vue'
 import PageTopBar from '../components/PageTopBar.vue'
 import SubscriptionIcon from '../components/SubscriptionIcon.vue'
 import { cycleProgress } from '../domain/billing'
@@ -186,19 +187,11 @@ async function seeAll() {
               </span>
             </div>
 
-            <div
-              class="tactile-progress"
-              role="progressbar"
-              :aria-label="`${item.name} billing cycle progress`"
-              :aria-valuenow="Math.round(progressFor(item).fraction * 100)"
-              aria-valuemin="0"
-              aria-valuemax="100"
-            >
-              <div
-                class="tactile-progress-fill"
-                :style="{ width: `${Math.round(progressFor(item).fraction * 100)}%` }"
-              />
-            </div>
+            <BillingProgressBar
+              :progress="progressFor(item)"
+              :label="`${item.name} billing cycle remaining`"
+              :test-id="`overview-progress-${item.id}`"
+            />
             <p class="text-sm text-on-surface-variant">{{ item.nextBillingDate }}</p>
           </button>
         </div>

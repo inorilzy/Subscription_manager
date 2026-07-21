@@ -73,7 +73,23 @@ async function fillAndSubmitSubscription(
       .setValue(values.billingInterval)
   }
   if (values.category) {
-    await wrapper.get('[data-testid="subscription-category"]').setValue(values.category)
+    const categorySelect = wrapper.get('[data-testid="subscription-category"]')
+    if (values.category === 'Default') {
+      await categorySelect.setValue('')
+    } else {
+      const optionExists = categorySelect
+        .findAll('option')
+        .some((option) => option.attributes('value') === values.category)
+      if (optionExists) {
+        await categorySelect.setValue(values.category)
+      } else {
+        await wrapper.get('[data-testid="new-category-toggle"]').trigger('click')
+        await wrapper.get('[data-testid="new-category-name"]').setValue(values.category)
+        await wrapper.get('[data-testid="new-category-add"]').trigger('click')
+        await flushPromises()
+        await nextTick()
+      }
+    }
   }
   if (values.planName) {
     await wrapper.get('[data-testid="subscription-plan-name"]').setValue(values.planName)
@@ -338,7 +354,7 @@ describe('first monthly subscription', () => {
     expect(wrapper.text()).not.toContain('Bad Sub')
   })
 
-  it('uses Other category when none is selected', async () => {
+  it('uses Default category when none is selected', async () => {
     const wrapper = await mountApp()
 
     await openCreateFrom(wrapper, 'overview')
@@ -350,7 +366,7 @@ describe('first monthly subscription', () => {
     })
 
     expect(wrapper.text()).toContain('Mystery Box')
-    expect(wrapper.text()).toContain('Other')
+    expect(wrapper.text()).toContain('Default')
   })
 })
 
@@ -418,6 +434,74 @@ describe('theme language currency', () => {
   })
 })
 
+describe('category management', () => {
+  beforeEach(async () => {
+    setNow('2030-01-15T12:00:00')
+    await resetDatabaseForTests()
+    document.body.innerHTML = ''
+  })
+
+  afterEach(() => {
+    setNow(null)
+    document.body.innerHTML = ''
+  })
+
+  it('adds a category in Settings and moves its subscriptions to Default when deleted', async () => {
+    const wrapper = await mountApp()
+    await openDestination(wrapper, 'nav-settings', '/settings')
+
+    const defaultItem = wrapper
+      .findAll('[data-testid="settings-category-item"]')
+      .find((item) => item.attributes('data-category') === 'Default')
+    expect(defaultItem).toBeDefined()
+    expect(defaultItem!.find('[data-testid="settings-category-delete"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="settings-category-name"]').setValue('Education')
+    await wrapper.get('[data-testid="settings-category-add"]').trigger('click')
+    await flushPromises()
+    await nextTick()
+    expect(
+      wrapper
+        .findAll('[data-testid="settings-category-item"]')
+        .some((item) => item.attributes('data-category') === 'Education'),
+    ).toBe(true)
+
+    await openCreateFrom(wrapper, 'subscriptions')
+    await fillAndSubmitSubscription(wrapper, {
+      name: 'Learning App',
+      amount: '12.00',
+      nextBillingDate: '2030-06-15',
+      category: 'Education',
+    })
+
+    await openDestination(wrapper, 'nav-settings', '/settings')
+    const deleteButton = wrapper
+      .findAll('[data-testid="settings-category-delete"]')
+      .find((button) => button.attributes('data-category') === 'Education')
+    expect(deleteButton).toBeDefined()
+    await deleteButton!.trigger('click')
+    await nextTick()
+    expect(wrapper.get('[data-testid="settings-category-delete-confirm"]').text()).toMatch(
+      /Default|默认/,
+    )
+    await wrapper.get('[data-testid="settings-category-delete-yes"]').trigger('click')
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="settings-category-message"]').text()).toContain('1')
+    expect(
+      wrapper
+        .findAll('[data-testid="settings-category-item"]')
+        .some((item) => item.attributes('data-category') === 'Education'),
+    ).toBe(false)
+
+    await openDestination(wrapper, 'nav-subscriptions', '/subscriptions')
+    expect(wrapper.text()).toContain('Learning App')
+    expect(wrapper.text()).toContain('Default')
+    expect(wrapper.text()).not.toContain('Education')
+  })
+})
+
 describe('monthly and yearly renewals', () => {
   beforeEach(async () => {
     setNow('2030-01-15T12:00:00')
@@ -469,6 +553,60 @@ describe('monthly and yearly renewals', () => {
     // Feb 2030 -> 2030-02-28, Mar 2030 -> 2030-03-31
     expect(wrapper.text()).toContain('2030-03-31')
     expect(wrapper.text()).not.toContain('2030-01-31')
+  })
+
+  it('shrinks progress by time remaining and applies orange and red urgency across views', async () => {
+    setNow('2030-06-08T12:00:00')
+    const wrapper = await mountApp()
+
+    await openCreateFrom(wrapper, 'subscriptions')
+    await fillAndSubmitSubscription(wrapper, {
+      name: 'Urgent Renewal',
+      amount: '9.00',
+      nextBillingDate: '2030-06-15',
+    })
+    const urgentItem = wrapper
+      .findAll('[data-testid="subscription-item"]')
+      .find((item) => item.text().includes('Urgent Renewal'))
+    expect(urgentItem).toBeDefined()
+    const urgentId = urgentItem!.attributes('data-id')
+
+    await openCreateFrom(wrapper, 'subscriptions')
+    await fillAndSubmitSubscription(wrapper, {
+      name: 'Halfway Renewal',
+      amount: '12.00',
+      nextBillingDate: '2030-06-23',
+    })
+    const halfwayItem = wrapper
+      .findAll('[data-testid="subscription-item"]')
+      .find((item) => item.text().includes('Halfway Renewal'))
+    expect(halfwayItem).toBeDefined()
+    const halfwayId = halfwayItem!.attributes('data-id')
+
+    expect(
+      wrapper.get(`[data-testid="subscription-progress-${urgentId}"]`).attributes('data-tone'),
+    ).toBe('red')
+    expect(
+      wrapper.get(`[data-testid="subscription-progress-${halfwayId}"]`).attributes('data-tone'),
+    ).toBe('orange')
+
+    await openDestination(wrapper, 'nav-overview', '/')
+    expect(
+      wrapper.get(`[data-testid="overview-progress-${urgentId}"]`).attributes('data-tone'),
+    ).toBe('red')
+    expect(
+      wrapper.get(`[data-testid="overview-progress-${halfwayId}"]`).attributes('data-tone'),
+    ).toBe('orange')
+
+    await router.push({ name: 'subscription-detail', params: { id: urgentId } })
+    await flushPromises()
+    await nextTick()
+    expect(wrapper.get('[data-testid="detail-progress-bar"]').attributes('data-tone')).toBe('red')
+    expect(
+      Number(
+        wrapper.get('[data-testid="detail-progress-bar"]').attributes('data-remaining-percent'),
+      ),
+    ).toBeLessThan(50)
   })
 })
 
@@ -563,7 +701,7 @@ describe('subscription lifecycle', () => {
       name: 'Loop Test',
       amount: '20.00',
       nextBillingDate: '2030-07-22',
-      category: 'Other',
+      category: 'Default',
     })
 
     const id = wrapper.get('[data-testid="subscription-item"]').attributes('data-id')!

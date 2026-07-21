@@ -15,7 +15,7 @@ const props = withDefaults(
     name?: string
     category?: string
   }>(),
-  { name: '', category: 'Other' },
+  { name: '', category: 'Default' },
 )
 
 const emit = defineEmits<{

@@ -1,5 +1,9 @@
 import { getDatabase, getPreference } from '../database/client'
-import { isValidSubscriptionAccount, type Subscription } from '../domain/subscription'
+import {
+  isValidSubscriptionAccount,
+  normalizeCategory,
+  type Subscription,
+} from '../domain/subscription'
 import { isSubscriptionIconKey } from '../domain/subscription-icons'
 import { listSubscriptions } from './subscriptions'
 import { reconcileNotifications } from './reminders'
@@ -41,21 +45,17 @@ function toRow(item: Subscription): Record<string, unknown> {
 export async function exportBackup(): Promise<BackupDocument> {
   const subscriptions = await listSubscriptions({ includeCancelled: true })
   // also include soft-deleted? MVP export active+cancelled non-deleted only is fine
-  const keys = ['currency', 'language', 'theme', 'reminders_enabled', 'reminder_lead_days']
+  const preferenceDefaults: Record<string, string> = {
+    currency: 'CNY',
+    language: 'zh-CN',
+    theme: 'light',
+    reminders_enabled: '0',
+    reminder_lead_days: '3',
+    custom_categories: '[]',
+  }
   const preferences: Record<string, string> = {}
-  for (const key of keys) {
-    preferences[key] = await getPreference(
-      key,
-      key === 'reminders_enabled'
-        ? '0'
-        : key === 'reminder_lead_days'
-          ? '3'
-          : key === 'currency'
-            ? 'CNY'
-            : key === 'language'
-              ? 'zh-CN'
-              : 'light',
-    )
+  for (const [key, fallback] of Object.entries(preferenceDefaults)) {
+    preferences[key] = await getPreference(key, fallback)
   }
 
   return {
@@ -153,7 +153,7 @@ export async function importBackup(raw: unknown, confirmed: boolean): Promise<vo
           String(row.billing_interval),
           Number(row.billing_anchor_day ?? 1),
           String(row.next_billing_date),
-          String(row.category ?? 'Other'),
+          normalizeCategory(typeof row.category === 'string' ? row.category : null),
           row.plan_name == null ? null : String(row.plan_name),
           row.payment_method_label == null ? null : String(row.payment_method_label),
           String(row.icon_key ?? 'auto'),

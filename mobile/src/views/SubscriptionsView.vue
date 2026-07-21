@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { listCategories } from '../application/categories'
 import { listSubscriptions } from '../application/subscriptions'
+import BillingProgressBar from '../components/BillingProgressBar.vue'
 import PageTopBar from '../components/PageTopBar.vue'
 import SubscriptionIcon from '../components/SubscriptionIcon.vue'
 import { cycleProgress, dailyAmountMinor } from '../domain/billing'
@@ -315,23 +316,13 @@ async function openDetail(id: string) {
                       }}
                     </span>
                   </div>
-                  <div
+                  <BillingProgressBar
                     v-if="item.status === 'active'"
-                    class="mini-progress"
-                    role="progressbar"
-                    :aria-valuenow="Math.round(progressFor(item).fraction * 100)"
-                    aria-valuemin="0"
-                    aria-valuemax="100"
-                    :aria-label="`${item.name} billing cycle progress`"
-                  >
-                    <div
-                      class="mini-progress-fill"
-                      :class="
-                        item.billingInterval === 'yearly' ? 'bg-primary' : 'bg-primary-container'
-                      "
-                      :style="{ width: `${Math.round(progressFor(item).fraction * 100)}%` }"
-                    />
-                  </div>
+                    compact
+                    :progress="progressFor(item)"
+                    :label="`${item.name} billing cycle remaining`"
+                    :test-id="`subscription-progress-${item.id}`"
+                  />
                   <p class="text-xs text-on-surface-variant">{{ item.nextBillingDate }}</p>
                 </div>
                 <span class="icon-button size-10 border-b-2" aria-hidden="true">

@@ -20,6 +20,7 @@ import {
   getSubscription,
   reactivateSubscription,
 } from '../application/subscriptions'
+import BillingProgressBar from '../components/BillingProgressBar.vue'
 import PageTopBar from '../components/PageTopBar.vue'
 import SubscriptionIcon from '../components/SubscriptionIcon.vue'
 import { cycleProgress, dailyAmountMinor } from '../domain/billing'
@@ -71,7 +72,9 @@ const dailyLabel = computed(() => {
 })
 
 const progress = computed(() => {
-  if (!subscription.value) return { fraction: 0, daysLeft: 0, cycleDays: 1 }
+  if (!subscription.value) {
+    return { fraction: 0, remainingFraction: 0, daysLeft: 0, cycleDays: 1 }
+  }
   return cycleProgress(
     subscription.value.nextBillingDate,
     subscription.value.billingInterval,
@@ -256,19 +259,11 @@ async function onDeleteConfirmed() {
             class="mt-5 space-y-2"
             data-testid="detail-progress"
           >
-            <div
-              class="tactile-progress"
-              role="progressbar"
-              :aria-valuenow="Math.round(progress.fraction * 100)"
-              aria-valuemin="0"
-              aria-valuemax="100"
-              :aria-label="`${subscription.name} billing cycle progress`"
-            >
-              <div
-                class="tactile-progress-fill bg-primary transition-all"
-                :style="{ width: `${Math.round(progress.fraction * 100)}%` }"
-              />
-            </div>
+            <BillingProgressBar
+              :progress="progress"
+              :label="`${subscription.name} billing cycle remaining`"
+              test-id="detail-progress-bar"
+            />
             <p class="text-sm font-extrabold text-primary">
               {{ preferences.t('common.daysLeft', { n: progress.daysLeft }) }}
             </p>

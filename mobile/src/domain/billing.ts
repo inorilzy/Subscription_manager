@@ -97,8 +97,19 @@ function diffDays(fromDateOnly: string, toDateOnly: string): number {
   return Math.round((to.getTime() - from.getTime()) / 86_400_000)
 }
 
+export interface CycleProgress {
+  /** Elapsed fraction retained for domain calculations and compatibility. */
+  fraction: number
+  /** Remaining fraction drives the shrinking billing progress indicator. */
+  remainingFraction: number
+  daysLeft: number
+  cycleDays: number
+}
+
+export type CycleProgressTone = 'green' | 'orange' | 'red'
+
 /**
- * Elapsed fraction of the current billing cycle, clamped to 0..1.
+ * Elapsed and remaining fractions of the current billing cycle, clamped to 0..1.
  * Cycle runs from the previous occurrence to nextBillingDate.
  */
 export function cycleProgress(
@@ -106,13 +117,23 @@ export function cycleProgress(
   interval: BillingInterval,
   anchorDay: number,
   todayDateOnly: string,
-): { fraction: number; daysLeft: number; cycleDays: number } {
+): CycleProgress {
   const start = previousBillingDate(nextBillingDate, interval, anchorDay)
   const cycleDays = Math.max(1, diffDays(start, nextBillingDate))
   const elapsed = diffDays(start, todayDateOnly)
   const fraction = Math.min(1, Math.max(0, elapsed / cycleDays))
   const daysLeft = Math.max(0, diffDays(todayDateOnly, nextBillingDate))
-  return { fraction, daysLeft, cycleDays }
+  const remainingFraction = Math.min(1, Math.max(0, daysLeft / cycleDays))
+  return { fraction, remainingFraction, daysLeft, cycleDays }
+}
+
+/** Red takes priority in the final seven days; otherwise half remaining is orange. */
+export function cycleProgressTone(
+  progress: Pick<CycleProgress, 'remainingFraction' | 'daysLeft'>,
+): CycleProgressTone {
+  if (progress.daysLeft <= 7) return 'red'
+  if (progress.remainingFraction <= 0.5) return 'orange'
+  return 'green'
 }
 
 /** Average cost per day in minor units for the current cycle. */

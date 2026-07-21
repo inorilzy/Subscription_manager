@@ -152,7 +152,7 @@ describe('month stats domain', () => {
 })
 
 describe('subscription metadata migration', () => {
-  it('adds icon and account columns atomically after schema v1', async () => {
+  it('applies metadata and Default-category migrations atomically after schema v1', async () => {
     const versions = new Set([1])
     const executed: string[] = []
     const client: DatabaseClient = {
@@ -181,20 +181,26 @@ describe('subscription metadata migration', () => {
 
     await migrate(client)
 
-    const begin = executed.indexOf('-- begin migration')
     const iconColumn = executed.indexOf(
       "ALTER TABLE subscriptions ADD COLUMN icon_key TEXT NOT NULL DEFAULT 'auto'",
     )
     const accountColumn = executed.indexOf(
       'ALTER TABLE subscriptions ADD COLUMN account_label TEXT',
     )
-    const commit = executed.indexOf('-- commit migration')
-    expect(begin).toBeGreaterThanOrEqual(0)
-    expect(iconColumn).toBeGreaterThan(begin)
+    const categoryMigration = executed.findIndex((sql) => sql.includes("SET category = 'Default'"))
+    const begins = executed.flatMap((sql, index) => (sql === '-- begin migration' ? [index] : []))
+    const commits = executed.flatMap((sql, index) => (sql === '-- commit migration' ? [index] : []))
+
+    expect(begins).toHaveLength(2)
+    expect(commits).toHaveLength(2)
+    expect(iconColumn).toBeGreaterThan(begins[0]!)
     expect(accountColumn).toBeGreaterThan(iconColumn)
-    expect(commit).toBeGreaterThan(accountColumn)
-    expect(executed).toContain('PRAGMA user_version = 2')
+    expect(commits[0]).toBeGreaterThan(accountColumn)
+    expect(categoryMigration).toBeGreaterThan(begins[1]!)
+    expect(commits[1]).toBeGreaterThan(categoryMigration)
+    expect(executed).toContain('PRAGMA user_version = 3')
     expect(versions.has(2)).toBe(true)
+    expect(versions.has(3)).toBe(true)
   })
 })
 
