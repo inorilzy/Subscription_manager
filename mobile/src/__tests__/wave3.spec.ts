@@ -103,12 +103,37 @@ describe('month stats domain', () => {
     ]
 
     const stats = computeMonthStats(items, '2030-06-10')
-    expect(stats.totalMinor).toBe(1000 + 12000)
-    expect(stats.categories.map((c) => c.category).sort()).toEqual([
-      'Entertainment',
-      'Productivity',
+    expect(stats.totalsByCurrency).toEqual([{ currency: 'USD', amountMinor: 1000 + 12000 }])
+    const cats = stats.categoriesByCurrency[0]?.categories ?? []
+    expect(cats.map((c) => c.category).sort()).toEqual(['Entertainment', 'Productivity'])
+    expect(cats.reduce((sum, c) => sum + c.amountMinor, 0)).toBe(1000 + 12000)
+    setNow(null)
+  })
+
+  it('groups stats by subscription currency without FX conversion', () => {
+    setNow('2030-06-10T12:00:00')
+    const items = [
+      sample({
+        id: 'usd',
+        name: 'Netflix',
+        amountMinor: 1599,
+        currency: 'USD',
+        nextBillingDate: '2030-06-15',
+      }),
+      sample({
+        id: 'cny',
+        name: 'iQIYI',
+        amountMinor: 2500,
+        currency: 'CNY',
+        nextBillingDate: '2030-06-20',
+        category: 'Entertainment',
+      }),
+    ]
+    const stats = computeMonthStats(items, '2030-06-10')
+    expect(stats.totalsByCurrency).toEqual([
+      { currency: 'CNY', amountMinor: 2500 },
+      { currency: 'USD', amountMinor: 1599 },
     ])
-    expect(stats.categories.reduce((sum, c) => sum + c.amountMinor, 0)).toBe(stats.totalMinor)
     setNow(null)
   })
 })

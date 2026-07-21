@@ -175,6 +175,7 @@ class MemoryDatabase implements DatabaseClient {
         const [
           name,
           amount_minor,
+          currency,
           billing_interval,
           billing_anchor_day,
           next_billing_date,
@@ -190,6 +191,7 @@ class MemoryDatabase implements DatabaseClient {
           Object.assign(row, {
             name,
             amount_minor,
+            currency,
             billing_interval,
             billing_anchor_day,
             next_billing_date,

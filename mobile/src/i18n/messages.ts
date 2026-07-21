@@ -1,3 +1,9 @@
+import {
+  SUPPORTED_CURRENCIES as MONEY_CURRENCIES,
+  type CurrencyCode as MoneyCurrencyCode,
+  isCurrencyCode as isMoneyCurrencyCode,
+} from '../domain/money'
+
 export type MessageKey =
   | 'nav.overview'
   | 'nav.subscriptions'
@@ -22,6 +28,7 @@ export type MessageKey =
   | 'create.subtitle'
   | 'create.name'
   | 'create.amount'
+  | 'create.currency'
   | 'create.nextBillingDate'
   | 'create.category'
   | 'create.categoryDefault'
@@ -115,9 +122,13 @@ export type MessageKey =
 
 export type LanguageCode = 'en' | 'zh-CN'
 export type ThemeMode = 'light' | 'dark'
-export type CurrencyCode = 'USD' | 'CNY' | 'EUR' | 'GBP' | 'JPY'
+export type CurrencyCode = MoneyCurrencyCode
 
-export const SUPPORTED_CURRENCIES: CurrencyCode[] = ['USD', 'CNY', 'EUR', 'GBP', 'JPY']
+export const SUPPORTED_CURRENCIES: CurrencyCode[] = [...MONEY_CURRENCIES]
+
+export function isCurrencyCode(value: string): value is CurrencyCode {
+  return isMoneyCurrencyCode(value)
+}
 
 const en: Record<MessageKey, string> = {
   'nav.overview': 'Overview',
@@ -144,6 +155,7 @@ const en: Record<MessageKey, string> = {
   'create.subtitle': 'Track a recurring service.',
   'create.name': 'Name',
   'create.amount': 'Amount',
+  'create.currency': 'Currency',
   'create.nextBillingDate': 'Next Billing Date',
   'create.category': 'Category',
   'create.categoryDefault': 'Other (default)',
@@ -192,7 +204,7 @@ const en: Record<MessageKey, string> = {
   'stats.categoriesEmpty': 'Categories will appear after you track subscriptions.',
   'settings.title': 'Settings',
   'settings.appearance': 'Appearance',
-  'settings.currency': 'Currency',
+  'settings.currency': 'Default currency for new subscriptions',
   'settings.language': 'Language',
   'settings.footer':
     'Local preferences only. Cloud accounts and paid upgrades are not part of this MVP.',
@@ -268,6 +280,7 @@ const zh: Record<MessageKey, string> = {
   'create.subtitle': '记录一项周期服务。',
   'create.name': '名称',
   'create.amount': '金额',
+  'create.currency': '币种',
   'create.nextBillingDate': '下次扣费日期',
   'create.category': '分类',
   'create.categoryDefault': '其他（默认）',
@@ -314,7 +327,7 @@ const zh: Record<MessageKey, string> = {
   'stats.categoriesEmpty': '记录订阅后会显示分类明细。',
   'settings.title': '设置',
   'settings.appearance': '外观',
-  'settings.currency': '货币',
+  'settings.currency': '新建订阅默认币种',
   'settings.language': '语言',
   'settings.footer': '仅本地偏好设置。云账号与付费升级不在本 MVP 范围内。',
   'settings.webdav': 'WebDAV 同步',
@@ -376,9 +389,6 @@ export function isThemeMode(value: string): value is ThemeMode {
   return value === 'light' || value === 'dark'
 }
 
-export function isCurrencyCode(value: string): value is CurrencyCode {
-  return (SUPPORTED_CURRENCIES as string[]).includes(value)
-}
 
 export function translate(
   language: LanguageCode,

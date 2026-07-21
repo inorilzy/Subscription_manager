@@ -33,8 +33,6 @@ import { getNotificationAdapter } from '../notifications/adapter'
 import { usePreferencesStore } from '../stores/preferences'
 
 const preferences = usePreferencesStore()
-const pendingCurrency = ref<CurrencyCode | null>(null)
-const showCurrencyWarning = ref(false)
 const remindersEnabled = ref(false)
 const reminderLeadDays = ref(3)
 const permission = ref<'granted' | 'denied' | 'prompt'>('prompt')
@@ -73,30 +71,7 @@ async function onLanguageChange(event: Event) {
 async function onCurrencyChange(event: Event) {
   const value = (event.target as HTMLSelectElement).value as CurrencyCode
   if (value === preferences.currency) return
-
-  const needsWarning = await preferences.requiresCurrencyWarning(value)
-  if (needsWarning) {
-    pendingCurrency.value = value
-    showCurrencyWarning.value = true
-    ;(event.target as HTMLSelectElement).value = preferences.currency
-    return
-  }
-
   await preferences.setCurrency(value)
-  await reconcileNotifications(await listSubscriptions({ includeCancelled: true }))
-}
-
-async function confirmCurrencyChange() {
-  if (!pendingCurrency.value) return
-  await preferences.setCurrency(pendingCurrency.value)
-  pendingCurrency.value = null
-  showCurrencyWarning.value = false
-  await reconcileNotifications(await listSubscriptions({ includeCancelled: true }))
-}
-
-function cancelCurrencyChange() {
-  pendingCurrency.value = null
-  showCurrencyWarning.value = false
 }
 
 function currencyLabel(code: CurrencyCode): string {
@@ -104,7 +79,10 @@ function currencyLabel(code: CurrencyCode): string {
   if (code === 'CNY') return 'CNY (¥)'
   if (code === 'EUR') return 'EUR (€)'
   if (code === 'GBP') return 'GBP (£)'
-  return 'JPY (¥)'
+  if (code === 'JPY') return 'JPY (¥)'
+  if (code === 'INR') return 'INR (₹)'
+  if (code === 'TRY') return 'TRY (₺)'
+  return code
 }
 
 async function onReminderToggle(event: Event) {
@@ -503,36 +481,6 @@ function cancelWebDavRestore() {
     <p v-if="backupMessage" class="text-sm text-on-surface" data-testid="backup-message" role="status">
       {{ backupMessage }}
     </p>
-
-    <div
-      v-if="showCurrencyWarning"
-      class="tactile-card space-y-3 border-error/40 p-5"
-      role="dialog"
-      data-testid="currency-warning"
-    >
-      <h2 class="font-headline text-xl font-bold text-on-surface">
-        {{ preferences.t('settings.currencyWarningTitle') }}
-      </h2>
-      <p class="text-on-surface-variant">{{ preferences.t('settings.currencyWarningBody') }}</p>
-      <div class="flex gap-3">
-        <button
-          type="button"
-          class="flex-1 rounded-xl border-2 border-surface-container-highest px-4 py-3 font-bold"
-          data-testid="currency-warning-cancel"
-          @click="cancelCurrencyChange"
-        >
-          {{ preferences.t('settings.currencyCancel') }}
-        </button>
-        <button
-          type="button"
-          class="tactile-btn flex-1 px-4 py-3"
-          data-testid="currency-warning-confirm"
-          @click="confirmCurrencyChange"
-        >
-          {{ preferences.t('settings.currencyConfirm') }}
-        </button>
-      </div>
-    </div>
 
     <div
       v-if="showImportConfirm"

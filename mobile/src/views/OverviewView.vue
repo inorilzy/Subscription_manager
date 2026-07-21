@@ -8,7 +8,7 @@ import { usePreferencesStore } from '../stores/preferences'
 const router = useRouter()
 const preferences = usePreferencesStore()
 const activeCount = ref(0)
-const monthlyMinor = ref(0)
+const monthlyByCurrency = ref<Array<{ currency: string; amountMinor: number }>>([])
 const upcoming = ref<Subscription[]>([])
 const loaded = ref(false)
 
@@ -31,7 +31,7 @@ function countdown(date: string) {
 async function reload() {
   const snapshot = await getOverviewSnapshot()
   activeCount.value = snapshot.activeCount
-  monthlyMinor.value = snapshot.monthlyRecurringMinor
+  monthlyByCurrency.value = snapshot.monthlyByCurrency
   upcoming.value = snapshot.upcoming
   loaded.value = true
 }
@@ -93,9 +93,18 @@ async function seeAll() {
           <p class="text-xs font-bold uppercase tracking-wide text-on-surface-variant">
             {{ preferences.t('overview.monthly') }}
           </p>
-          <p class="font-headline text-3xl font-extrabold text-error" data-testid="overview-monthly">
-            {{ preferences.formatAmount(monthlyMinor) }}
-          </p>
+          <div class="space-y-1" data-testid="overview-monthly">
+            <p
+              v-for="row in monthlyByCurrency"
+              :key="row.currency"
+              class="font-headline text-2xl font-extrabold text-error"
+            >
+              {{ preferences.formatAmount(row.amountMinor, row.currency as never) }}
+            </p>
+            <p v-if="monthlyByCurrency.length === 0" class="font-headline text-3xl font-extrabold text-error">
+              {{ preferences.formatAmount(0) }}
+            </p>
+          </div>
         </div>
       </div>
       <p v-if="activeCount === 0" class="text-center text-on-surface-variant">

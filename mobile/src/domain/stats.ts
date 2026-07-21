@@ -3,13 +3,20 @@ import type { Subscription } from './subscription'
 import { todayDateOnly } from './clock'
 import { addBillingInterval } from './billing'
 
+export interface CurrencyAmount {
+  currency: string
+  amountMinor: number
+}
+
 export interface MonthStats {
   year: number
   monthIndex: number
-  totalMinor: number
-  previousTotalMinor: number
-  deltaMinor: number
-  categories: Array<{ category: string; amountMinor: number }>
+  totalsByCurrency: CurrencyAmount[]
+  previousTotalsByCurrency: CurrencyAmount[]
+  categoriesByCurrency: Array<{
+    currency: string
+    categories: Array<{ category: string; amountMinor: number }>
+  }>
 }
 
 function monthKey(year: number, monthIndex: number): string {
@@ -28,14 +35,10 @@ function occurrencesInMonth(
 ): number {
   if (subscription.status !== 'active' || subscription.deletedAt) return 0
 
-  // Walk from a date before the month until past the month end.
-  // Use nextBillingDate and go backward by intervals until before month start,
-  // then forward through the month.
   const monthStart = `${monthKey(year, monthIndex)}-01`
   const dim = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate()
   const monthEnd = `${monthKey(year, monthIndex)}-${String(dim).padStart(2, '0')}`
 
-  // Start from nextBillingDate and rewind far enough for yearly/monthly.
   let cursor = subscription.nextBillingDate
   for (let i = 0; i < 24; i += 1) {
     const prev = rewindOne(cursor, subscription)
@@ -48,7 +51,6 @@ function occurrencesInMonth(
     cursor = prev
   }
 
-  // Ensure cursor is on/before month if possible
   while (true) {
     const prev = rewindOne(cursor, subscription)
     if (prev >= cursor) break
@@ -57,7 +59,6 @@ function occurrencesInMonth(
   }
 
   let total = 0
-  // Forward through month
   for (let i = 0; i < 24; i += 1) {
     if (cursor > monthEnd) break
     if (cursor >= monthStart && cursor <= monthEnd) {
@@ -96,6 +97,12 @@ function rewindOne(dateOnly: string, subscription: Subscription): string {
   return `${y}-${m}-${d}`
 }
 
+function mapToSortedAmounts(map: Map<string, number>): CurrencyAmount[] {
+  return [...map.entries()]
+    .map(([currency, amountMinor]) => ({ currency, amountMinor }))
+    .sort((a, b) => a.currency.localeCompare(b.currency))
+}
+
 export function computeMonthStats(
   subscriptions: Subscription[],
   referenceDateOnly: string = todayDateOnly(),
@@ -105,33 +112,42 @@ export function computeMonthStats(
   const monthIndex = ref.getUTCMonth()
   const prev = previousMonth(year, monthIndex)
 
-  const categoryMap = new Map<string, number>()
-  let totalMinor = 0
-  let previousTotalMinor = 0
+  const totalMap = new Map<string, number>()
+  const previousMap = new Map<string, number>()
+  const categoryMaps = new Map<string, Map<string, number>>()
 
   for (const item of subscriptions) {
     const currentCount = occurrencesInMonth(item, year, monthIndex)
     if (currentCount > 0) {
       const amount = item.amountMinor * currentCount
-      totalMinor += amount
-      categoryMap.set(item.category, (categoryMap.get(item.category) ?? 0) + amount)
+      totalMap.set(item.currency, (totalMap.get(item.currency) ?? 0) + amount)
+      const catMap = categoryMaps.get(item.currency) ?? new Map<string, number>()
+      catMap.set(item.category, (catMap.get(item.category) ?? 0) + amount)
+      categoryMaps.set(item.currency, catMap)
     }
     const prevCount = occurrencesInMonth(item, prev.year, prev.monthIndex)
     if (prevCount > 0) {
-      previousTotalMinor += item.amountMinor * prevCount
+      previousMap.set(
+        item.currency,
+        (previousMap.get(item.currency) ?? 0) + item.amountMinor * prevCount,
+      )
     }
   }
 
-  const categories = [...categoryMap.entries()]
-    .map(([category, amountMinor]) => ({ category, amountMinor }))
-    .sort((a, b) => b.amountMinor - a.amountMinor || a.category.localeCompare(b.category))
+  const categoriesByCurrency = [...categoryMaps.entries()]
+    .map(([currency, catMap]) => ({
+      currency,
+      categories: [...catMap.entries()]
+        .map(([category, amountMinor]) => ({ category, amountMinor }))
+        .sort((a, b) => b.amountMinor - a.amountMinor || a.category.localeCompare(b.category)),
+    }))
+    .sort((a, b) => a.currency.localeCompare(b.currency))
 
   return {
     year,
     monthIndex,
-    totalMinor,
-    previousTotalMinor,
-    deltaMinor: totalMinor - previousTotalMinor,
-    categories,
+    totalsByCurrency: mapToSortedAmounts(totalMap),
+    previousTotalsByCurrency: mapToSortedAmounts(previousMap),
+    categoriesByCurrency,
   }
 }

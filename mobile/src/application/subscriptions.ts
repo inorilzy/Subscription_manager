@@ -2,7 +2,7 @@ import { getDatabase, getPreference } from '../database/client'
 import { reconcileNotifications } from './reminders'
 import { advanceNextBillingDate, anchorDayFromDate } from '../domain/billing'
 import { todayDateOnly } from '../domain/clock'
-import { MoneyError, parseAmountToMinor } from '../domain/money'
+import { MoneyError, normalizeCurrency, parseAmountToMinor } from '../domain/money'
 import {
   type CreateSubscriptionInput,
   type Subscription,
@@ -77,9 +77,11 @@ function validateCreateInput(input: CreateSubscriptionInput): {
   const nextBillingDate = input.nextBillingDate.trim()
   parseDateOnly(nextBillingDate)
 
+  const currency = normalizeCurrency(input.currency, 'CNY')
+
   let amountMinor: number
   try {
-    amountMinor = parseAmountToMinor(input.amountInput)
+    amountMinor = parseAmountToMinor(input.amountInput, currency)
   } catch (error) {
     throw mapMoneyError(error)
   }
@@ -93,7 +95,6 @@ function validateCreateInput(input: CreateSubscriptionInput): {
 
   const planName = input.planName?.trim() || null
   const category = normalizeCategory(input.category)
-  const currency = input.currency?.trim() || 'CNY'
   const billingInterval = normalizeBillingInterval(input.billingInterval)
   const billingAnchorDay = anchorDayFromDate(nextBillingDate)
 
@@ -155,8 +156,7 @@ export async function createSubscription(
   input: CreateSubscriptionInput,
 ): Promise<Subscription> {
   const validated = validateCreateInput(input)
-  const currency =
-    input.currency?.trim() || (await getPreference('currency', 'CNY'))
+  const currency = validated.currency
 
   const now = new Date().toISOString()
   const subscription: Subscription = {
@@ -247,20 +247,25 @@ export async function getSubscription(id: string): Promise<Subscription | null> 
 
 export async function getOverviewSnapshot(): Promise<{
   activeCount: number
-  monthlyRecurringMinor: number
+  monthlyByCurrency: Array<{ currency: string; amountMinor: number }>
   upcoming: Subscription[]
 }> {
   const subscriptions = await listSubscriptions()
-  const monthlyRecurringMinor = subscriptions.reduce((sum, item) => {
-    if (item.billingInterval === 'yearly') {
-      return sum + Math.round(item.amountMinor / 12)
-    }
-    return sum + item.amountMinor
-  }, 0)
+  const totals = new Map<string, number>()
+  for (const item of subscriptions) {
+    const amount =
+      item.billingInterval === 'yearly'
+        ? Math.round(item.amountMinor / 12)
+        : item.amountMinor
+    totals.set(item.currency, (totals.get(item.currency) ?? 0) + amount)
+  }
+  const monthlyByCurrency = [...totals.entries()]
+    .map(([currency, amountMinor]) => ({ currency, amountMinor }))
+    .sort((a, b) => a.currency.localeCompare(b.currency))
 
   return {
     activeCount: subscriptions.length,
-    monthlyRecurringMinor,
+    monthlyByCurrency,
     upcoming: subscriptions.slice(0, 5),
   }
 }
@@ -280,6 +285,7 @@ export async function updateSubscription(
     ...existing,
     name: validated.name,
     amountMinor: validated.amountMinor,
+    currency: validated.currency,
     billingInterval: validated.billingInterval,
     billingAnchorDay: validated.billingAnchorDay,
     nextBillingDate: validated.nextBillingDate,
@@ -294,13 +300,14 @@ export async function updateSubscription(
   try {
     await db.execute(
       `UPDATE subscriptions SET
-        name = ?, amount_minor = ?, billing_interval = ?, billing_anchor_day = ?,
+        name = ?, amount_minor = ?, currency = ?, billing_interval = ?, billing_anchor_day = ?,
         next_billing_date = ?, category = ?, plan_name = ?, payment_method_label = ?,
         updated_at = ?, version = ?
        WHERE id = ? AND deleted_at IS NULL`,
       [
         updated.name,
         updated.amountMinor,
+        updated.currency,
         updated.billingInterval,
         updated.billingAnchorDay,
         updated.nextBillingDate,

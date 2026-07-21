@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { addCategory, listCategories } from '../application/categories'
 import { getSubscription, updateSubscription } from '../application/subscriptions'
+import { currencyLabel, majorInputFromMinor, SUPPORTED_CURRENCIES, type CurrencyCode } from '../domain/money'
 import { ValidationError } from '../domain/subscription'
 import { usePreferencesStore } from '../stores/preferences'
 
@@ -13,6 +14,7 @@ const preferences = usePreferencesStore()
 const id = String(route.params.id ?? '')
 const name = ref('')
 const amount = ref('')
+const currency = ref<CurrencyCode>(preferences.currency)
 const nextBillingDate = ref('')
 const category = ref('')
 const planName = ref('')
@@ -68,7 +70,8 @@ onMounted(async () => {
     return
   }
   name.value = existing.name
-  amount.value = (existing.amountMinor / 100).toFixed(2)
+  amount.value = majorInputFromMinor(existing.amountMinor, existing.currency)
+  currency.value = (existing.currency as CurrencyCode) || preferences.currency
   nextBillingDate.value = existing.nextBillingDate
   category.value = existing.category === 'Other' ? '' : existing.category
   planName.value = existing.planName ?? ''
@@ -91,7 +94,7 @@ async function onSubmit() {
       planName: planName.value || null,
       paymentMethodLabel: paymentMethodLabel.value || null,
       billingInterval: billingInterval.value,
-      currency: preferences.currency,
+      currency: currency.value,
     })
     await router.push({ name: 'subscription-detail', params: { id } })
   } catch (error) {
@@ -152,6 +155,22 @@ async function onCancel() {
           required
           class="w-full rounded-xl border-2 border-surface-container-highest bg-surface-container-lowest px-3 py-3"
         />
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-sm font-bold text-on-surface" for="subscription-currency">
+          {{ preferences.t('create.currency') }}
+        </label>
+        <select
+          id="subscription-currency"
+          v-model="currency"
+          data-testid="subscription-currency"
+          class="w-full rounded-xl border-2 border-surface-container-highest bg-surface-container-lowest px-3 py-3"
+        >
+          <option v-for="code in SUPPORTED_CURRENCIES" :key="code" :value="code">
+            {{ currencyLabel(code, preferences.language) }}
+          </option>
+        </select>
       </div>
 
       <div class="space-y-1">

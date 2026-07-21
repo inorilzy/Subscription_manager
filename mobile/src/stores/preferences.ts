@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { countActiveSubscriptions, getPreference, setPreference } from '../database/client'
+import { getPreference, setPreference } from '../database/client'
 import {
   type CurrencyCode,
   type LanguageCode,
@@ -66,12 +66,6 @@ export const usePreferencesStore = defineStore('preferences', () => {
     await setPreference('currency', next)
   }
 
-  async function requiresCurrencyWarning(next: CurrencyCode): Promise<boolean> {
-    if (next === currency.value) return false
-    const count = await countActiveSubscriptions()
-    return count > 0
-  }
-
   return {
     language,
     theme,
@@ -84,7 +78,6 @@ export const usePreferencesStore = defineStore('preferences', () => {
     setLanguage,
     setTheme,
     setCurrency,
-    requiresCurrencyWarning,
     applyTheme,
   }
 })

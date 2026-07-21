@@ -8,22 +8,25 @@ const preferences = usePreferencesStore()
 const stats = ref<MonthStats | null>(null)
 const loaded = ref(false)
 
-const deltaLabel = computed(() => {
+function deltaFor(currency: string): string {
   if (!stats.value) return ''
-  const delta = stats.value.deltaMinor
+  const current = stats.value.totalsByCurrency.find((row) => row.currency === currency)?.amountMinor ?? 0
+  const previous = stats.value.previousTotalsByCurrency.find((row) => row.currency === currency)?.amountMinor ?? 0
+  const delta = current - previous
   if (delta === 0) {
     return preferences.language === 'zh-CN' ? '与上月持平' : 'Flat vs last month'
   }
-  const formatted = preferences.formatAmount(Math.abs(delta))
+  const formatted = preferences.formatAmount(Math.abs(delta), currency as never)
   if (delta > 0) {
     return preferences.language === 'zh-CN' ? `比上月多 ${formatted}` : `Up ${formatted} vs last month`
   }
   return preferences.language === 'zh-CN' ? `比上月少 ${formatted}` : `Down ${formatted} vs last month`
-})
+}
 
-const maxCategory = computed(() =>
-  stats.value?.categories.reduce((max, item) => Math.max(max, item.amountMinor), 0) ?? 0,
-)
+function maxCategory(currency: string): number {
+  const group = stats.value?.categoriesByCurrency.find((row) => row.currency === currency)
+  return group?.categories.reduce((max, item) => Math.max(max, item.amountMinor), 0) ?? 0
+}
 
 onMounted(async () => {
   const items = await listSubscriptions({ includeCancelled: true })
@@ -47,44 +50,54 @@ onMounted(async () => {
       <p class="text-sm font-bold uppercase tracking-widest text-on-surface-variant">
         {{ preferences.t('stats.scheduled') }}
       </p>
-      <p class="font-headline text-5xl font-extrabold text-error" data-testid="stats-total">
-        {{ preferences.formatAmount(stats.totalMinor) }}
-      </p>
-      <p class="text-on-surface-variant" data-testid="stats-delta">{{ deltaLabel }}</p>
+      <div data-testid="stats-total" class="space-y-2">
+        <div v-for="row in stats.totalsByCurrency" :key="row.currency">
+          <p class="font-headline text-4xl font-extrabold text-error">
+            {{ preferences.formatAmount(row.amountMinor, row.currency as never) }}
+          </p>
+          <p class="text-on-surface-variant" data-testid="stats-delta">{{ deltaFor(row.currency) }}</p>
+        </div>
+        <p v-if="stats.totalsByCurrency.length === 0" class="font-headline text-5xl font-extrabold text-error">
+          {{ preferences.formatAmount(0) }}
+        </p>
+      </div>
       <p class="text-xs text-on-surface-variant">
         {{
           preferences.language === 'zh-CN'
-            ? '本指标统计本月实际扣费发生额，不同于概览中的标准化月均成本。'
-            : 'This is actual scheduled cash flow this month, not the normalized monthly recurring cost on Overview.'
+            ? '不同币种分别统计，不做汇率换算。'
+            : 'Amounts are grouped by currency with no FX conversion.'
         }}
       </p>
-      <p v-if="stats.totalMinor === 0" class="text-on-surface-variant">
+      <p v-if="stats.totalsByCurrency.length === 0" class="text-on-surface-variant">
         {{ preferences.t('stats.zeroBody') }}
       </p>
     </div>
 
-    <div v-if="loaded && stats" class="tactile-card space-y-3 p-6">
+    <div v-if="loaded && stats" class="tactile-card space-y-4 p-6">
       <h2 class="font-headline text-xl font-bold text-on-surface">
         {{ preferences.t('stats.categories') }}
       </h2>
-      <p v-if="stats.categories.length === 0" class="text-on-surface-variant">
+      <p v-if="stats.categoriesByCurrency.length === 0" class="text-on-surface-variant">
         {{ preferences.t('stats.categoriesEmpty') }}
       </p>
-      <div
-        v-for="item in stats.categories"
-        :key="item.category"
-        class="space-y-1"
-        data-testid="stats-category-row"
-      >
-        <div class="flex items-center justify-between text-sm font-bold">
-          <span>{{ item.category }}</span>
-          <span>{{ preferences.formatAmount(item.amountMinor) }}</span>
-        </div>
-        <div class="h-3 overflow-hidden rounded-full border-2 border-surface-container-highest bg-surface-container-low">
-          <div
-            class="h-full bg-primary-container"
-            :style="{ width: `${maxCategory ? (item.amountMinor / maxCategory) * 100 : 0}%` }"
-          />
+      <div v-for="group in stats.categoriesByCurrency" :key="group.currency" class="space-y-3">
+        <p class="text-sm font-bold uppercase tracking-wide text-primary">{{ group.currency }}</p>
+        <div
+          v-for="item in group.categories"
+          :key="group.currency + item.category"
+          class="space-y-1"
+          data-testid="stats-category-row"
+        >
+          <div class="flex items-center justify-between text-sm font-bold">
+            <span>{{ item.category }}</span>
+            <span>{{ preferences.formatAmount(item.amountMinor, group.currency as never) }}</span>
+          </div>
+          <div class="h-3 overflow-hidden rounded-full border-2 border-surface-container-highest bg-surface-container-low">
+            <div
+              class="h-full bg-primary-container"
+              :style="{ width: `${maxCategory(group.currency) ? (item.amountMinor / maxCategory(group.currency)) * 100 : 0}%` }"
+            />
+          </div>
         </div>
       </div>
     </div>
