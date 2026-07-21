@@ -4,7 +4,7 @@ import { computeMonthStats } from '../domain/stats'
 import { planNotifications } from '../application/reminders'
 import { exportBackup, importBackup, validateBackup } from '../application/backup'
 import { createSubscription, listSubscriptions } from '../application/subscriptions'
-import { resetDatabaseForTests } from '../database/client'
+import { migrate, resetDatabaseForTests, type DatabaseClient } from '../database/client'
 import { setNow } from '../domain/clock'
 import {
   getNotificationAdapter,
@@ -25,6 +25,8 @@ function sample(overrides: Partial<Subscription> = {}): Subscription {
     category: 'Entertainment',
     planName: null,
     paymentMethodLabel: null,
+    iconKey: 'auto',
+    accountLabel: null,
     status: 'active',
     reminderEnabled: true,
     createdAt: '2030-01-01T00:00:00.000Z',
@@ -38,7 +40,13 @@ function sample(overrides: Partial<Subscription> = {}): Subscription {
 describe('search and filter domain', () => {
   it('filters by name, status, category and interval', () => {
     const items = [
-      sample({ id: '1', name: 'Netflix', category: 'Entertainment', billingInterval: 'monthly' }),
+      sample({
+        id: '1',
+        name: 'Netflix',
+        category: 'Entertainment',
+        billingInterval: 'monthly',
+        accountLabel: 'home@example.com',
+      }),
       sample({
         id: '2',
         name: 'Adobe',
@@ -51,6 +59,11 @@ describe('search and filter domain', () => {
 
     expect(
       filterSubscriptions(items, { ...DEFAULT_FILTERS, query: 'net' }).map((i) => i.name),
+    ).toEqual(['Netflix'])
+    expect(
+      filterSubscriptions(items, { ...DEFAULT_FILTERS, query: 'home@example.com' }).map(
+        (i) => i.name,
+      ),
     ).toEqual(['Netflix'])
     expect(
       filterSubscriptions(items, { ...DEFAULT_FILTERS, status: 'cancelled' }).map((i) => i.name),
@@ -138,6 +151,53 @@ describe('month stats domain', () => {
   })
 })
 
+describe('subscription metadata migration', () => {
+  it('adds icon and account columns atomically after schema v1', async () => {
+    const versions = new Set([1])
+    const executed: string[] = []
+    const client: DatabaseClient = {
+      async execute(statement, params = []) {
+        const sql = statement.trim()
+        executed.push(sql)
+        if (sql.startsWith('INSERT INTO schema_migrations')) {
+          versions.add(Number(params[0]))
+        }
+      },
+      async query(statement, params = []) {
+        if (statement.includes('FROM schema_migrations')) {
+          const version = Number(params[0])
+          return { values: versions.has(version) ? [{ version }] : [] }
+        }
+        return { values: [] }
+      },
+      async transaction<T>(work: () => Promise<T>): Promise<T> {
+        executed.push('-- begin migration')
+        const result = await work()
+        executed.push('-- commit migration')
+        return result
+      },
+      async close() {},
+    }
+
+    await migrate(client)
+
+    const begin = executed.indexOf('-- begin migration')
+    const iconColumn = executed.indexOf(
+      "ALTER TABLE subscriptions ADD COLUMN icon_key TEXT NOT NULL DEFAULT 'auto'",
+    )
+    const accountColumn = executed.indexOf(
+      'ALTER TABLE subscriptions ADD COLUMN account_label TEXT',
+    )
+    const commit = executed.indexOf('-- commit migration')
+    expect(begin).toBeGreaterThanOrEqual(0)
+    expect(iconColumn).toBeGreaterThan(begin)
+    expect(accountColumn).toBeGreaterThan(iconColumn)
+    expect(commit).toBeGreaterThan(accountColumn)
+    expect(executed).toContain('PRAGMA user_version = 2')
+    expect(versions.has(2)).toBe(true)
+  })
+})
+
 describe('reminders and backup', () => {
   beforeEach(async () => {
     setNow('2030-01-15T12:00:00')
@@ -164,11 +224,15 @@ describe('reminders and backup', () => {
       amountInput: '9.99',
       nextBillingDate: '2030-07-01',
       category: 'Music',
+      iconKey: 'spotify',
+      accountLabel: '+86 138 0013 8000',
     })
 
     const backup = await exportBackup()
     expect(backup.documentType).toBe('subscout-backup')
     expect(validateBackup(backup).subscriptions).toHaveLength(1)
+    expect(backup.subscriptions[0]?.icon_key).toBe('spotify')
+    expect(backup.subscriptions[0]?.account_label).toBe('+86 138 0013 8000')
 
     await resetDatabaseForTests()
     expect(await listSubscriptions({ includeCancelled: true })).toHaveLength(0)
@@ -177,6 +241,34 @@ describe('reminders and backup', () => {
     const restored = await listSubscriptions({ includeCancelled: true })
     expect(restored).toHaveLength(1)
     expect(restored[0]?.name).toBe('Spotify')
+    expect(restored[0]?.iconKey).toBe('spotify')
+    expect(restored[0]?.accountLabel).toBe('+86 138 0013 8000')
+  })
+
+  it('imports legacy backups with automatic icons and no account', async () => {
+    await importBackup(
+      {
+        documentType: 'subscout-backup',
+        schemaVersion: 1,
+        exportedAt: '2030-01-01T00:00:00.000Z',
+        preferences: {},
+        subscriptions: [
+          {
+            id: 'legacy-1',
+            name: 'Legacy Service',
+            amount_minor: 999,
+            billing_interval: 'monthly',
+            next_billing_date: '2030-08-01',
+          },
+        ],
+      },
+      true,
+    )
+
+    const restored = await listSubscriptions({ includeCancelled: true })
+    expect(restored).toHaveLength(1)
+    expect(restored[0]?.iconKey).toBe('auto')
+    expect(restored[0]?.accountLabel).toBeNull()
   })
 
   it('rejects invalid backups before mutation', async () => {
@@ -184,11 +276,30 @@ describe('reminders and backup', () => {
       name: 'Keep Me',
       amountInput: '5.00',
       nextBillingDate: '2030-08-01',
+      accountLabel: 'keep@example.com',
     })
     await expect(importBackup({ documentType: 'nope' }, true)).rejects.toThrow(
       'This file is not a SubScout backup.',
     )
     expect(await listSubscriptions()).toHaveLength(1)
+  })
+
+  it('rolls back a failed backup replacement', async () => {
+    await createSubscription({
+      name: 'Keep After Failure',
+      amountInput: '5.00',
+      nextBillingDate: '2030-08-01',
+      accountLabel: 'keep@example.com',
+    })
+    const backup = await exportBackup()
+    const duplicate = backup.subscriptions[0]!
+    backup.subscriptions = [duplicate, { ...duplicate }]
+
+    await expect(importBackup(backup, true)).rejects.toThrow(/UNIQUE constraint failed/)
+
+    const remaining = await listSubscriptions({ includeCancelled: true })
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0]?.name).toBe('Keep After Failure')
   })
 
   it('exposes scheduled notifications through the adapter spy', async () => {
@@ -199,6 +310,7 @@ describe('reminders and backup', () => {
       amountInput: '7.99',
       nextBillingDate: '2030-02-01',
       category: 'Entertainment',
+      accountLabel: 'disney@example.com',
     })
     // reminders disabled by default => empty
     expect(adapter.scheduled).toHaveLength(0)

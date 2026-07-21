@@ -9,6 +9,7 @@ import {
   Pencil,
   RefreshCw,
   Tags,
+  UserRound,
   Trash2,
 } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
@@ -177,15 +178,15 @@ async function onDeleteConfirmed() {
           <div class="relative mb-5 inline-flex">
             <SubscriptionIcon
               :category="subscription.category"
+              :name="subscription.name"
+              :icon-key="subscription.iconKey"
               large
               class="!size-24 !rounded-full [&>svg]:!size-10"
             />
             <span
               class="chip-pill absolute -right-8 -bottom-2 -rotate-6 whitespace-nowrap shadow-sm"
               :class="
-                subscription.status === 'active'
-                  ? 'status-badge-active'
-                  : 'status-badge-cancelled'
+                subscription.status === 'active' ? 'status-badge-active' : 'status-badge-cancelled'
               "
             >
               {{
@@ -202,17 +203,12 @@ async function onDeleteConfirmed() {
             {{ subscription.name }}
           </h1>
 
-          <div
-            class="mt-5 flex max-w-full flex-wrap items-end justify-center gap-x-3 gap-y-2"
-          >
+          <div class="mt-5 flex max-w-full flex-wrap items-end justify-center gap-x-3 gap-y-2">
             <p
               class="min-w-0 max-w-full break-all font-headline text-[clamp(2.5rem,13vw,4rem)] leading-none font-extrabold tracking-[-0.04em] text-primary"
             >
               {{
-                preferences.formatAmount(
-                  subscription.amountMinor,
-                  subscription.currency as never,
-                )
+                preferences.formatAmount(subscription.amountMinor, subscription.currency as never)
               }}
             </p>
             <span
@@ -226,15 +222,14 @@ async function onDeleteConfirmed() {
               {{ cycleLabel }}
             </span>
           </div>
-          <p
-            class="mt-2 text-sm font-bold text-on-surface-variant"
-            data-testid="detail-daily"
-          >
+          <p class="mt-2 text-sm font-bold text-on-surface-variant" data-testid="detail-daily">
             {{ dailyLabel }}
           </p>
         </div>
 
-        <div class="tactile-card min-w-0 border-surface-variant bg-surface-container-lowest p-5 text-on-surface">
+        <div
+          class="tactile-card min-w-0 border-surface-variant bg-surface-container-lowest p-5 text-on-surface"
+        >
           <div class="flex items-start justify-between gap-4">
             <div class="min-w-0">
               <p class="text-xs font-extrabold tracking-[0.14em] uppercase opacity-70">
@@ -286,6 +281,27 @@ async function onDeleteConfirmed() {
           </h2>
 
           <div class="settings-group min-w-0">
+            <div
+              v-if="subscription.accountLabel"
+              class="settings-row min-w-0"
+              data-testid="detail-subscription-account"
+            >
+              <span class="icon-house icon-house-primary" aria-hidden="true">
+                <UserRound :size="25" :stroke-width="2.4" />
+              </span>
+              <div class="min-w-0 flex-1">
+                <p class="text-xs font-bold tracking-[0.12em] text-on-surface-variant uppercase">
+                  {{ preferences.t('detail.account') }}
+                </p>
+                <p
+                  class="mt-1 break-all font-headline font-bold text-on-surface"
+                  data-testid="subscription-account"
+                >
+                  {{ subscription.accountLabel }}
+                </p>
+              </div>
+            </div>
+
             <div v-if="subscription.paymentMethodLabel" class="settings-row min-w-0">
               <span class="icon-house icon-house-secondary" aria-hidden="true">
                 <CreditCard :size="25" :stroke-width="2.4" />
@@ -346,9 +362,7 @@ async function onDeleteConfirmed() {
               <span
                 class="icon-house"
                 :class="
-                  subscription.status === 'active'
-                    ? 'icon-house-primary'
-                    : 'icon-house-neutral'
+                  subscription.status === 'active' ? 'icon-house-primary' : 'icon-house-neutral'
                 "
                 aria-hidden="true"
               >
@@ -442,7 +456,10 @@ async function onDeleteConfirmed() {
         data-testid="delete-confirm"
       >
         <div class="flex items-start gap-3">
-          <span class="icon-house border-error bg-error-container text-on-error-container" aria-hidden="true">
+          <span
+            class="icon-house border-error bg-error-container text-on-error-container"
+            aria-hidden="true"
+          >
             <Trash2 :size="24" :stroke-width="2.5" />
           </span>
           <div class="min-w-0">

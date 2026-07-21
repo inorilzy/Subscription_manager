@@ -1,5 +1,6 @@
 import { getDatabase, getPreference } from '../database/client'
-import type { Subscription } from '../domain/subscription'
+import { isValidSubscriptionAccount, type Subscription } from '../domain/subscription'
+import { isSubscriptionIconKey } from '../domain/subscription-icons'
 import { listSubscriptions } from './subscriptions'
 import { reconcileNotifications } from './reminders'
 
@@ -26,6 +27,8 @@ function toRow(item: Subscription): Record<string, unknown> {
     category: item.category,
     plan_name: item.planName,
     payment_method_label: item.paymentMethodLabel,
+    icon_key: item.iconKey,
+    account_label: item.accountLabel,
     status: item.status,
     reminder_enabled: item.reminderEnabled ? 1 : 0,
     created_at: item.createdAt,
@@ -75,7 +78,11 @@ export function validateBackup(input: unknown): BackupDocument {
   if (doc.schemaVersion !== BACKUP_SCHEMA_VERSION) {
     throw new Error('Unsupported backup version.')
   }
-  if (!Array.isArray(doc.subscriptions) || !doc.preferences || typeof doc.preferences !== 'object') {
+  if (
+    !Array.isArray(doc.subscriptions) ||
+    !doc.preferences ||
+    typeof doc.preferences !== 'object'
+  ) {
     throw new Error('Backup is missing required fields.')
   }
   for (const row of doc.subscriptions) {
@@ -84,14 +91,30 @@ export function validateBackup(input: unknown): BackupDocument {
     if (typeof r.id !== 'string' || typeof r.name !== 'string') {
       throw new Error('Backup contains an invalid subscription.')
     }
-    if (typeof r.amount_minor !== 'number' || !Number.isInteger(r.amount_minor) || r.amount_minor <= 0) {
+    if (
+      typeof r.amount_minor !== 'number' ||
+      !Number.isInteger(r.amount_minor) ||
+      r.amount_minor <= 0
+    ) {
       throw new Error('Backup contains an invalid amount.')
     }
     if (r.billing_interval !== 'monthly' && r.billing_interval !== 'yearly') {
       throw new Error('Backup contains an invalid billing cycle.')
     }
-    if (typeof r.next_billing_date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.next_billing_date)) {
+    if (
+      typeof r.next_billing_date !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(r.next_billing_date)
+    ) {
       throw new Error('Backup contains an invalid billing date.')
+    }
+    if (r.icon_key != null && !isSubscriptionIconKey(r.icon_key)) {
+      throw new Error('Backup contains an invalid subscription icon.')
+    }
+    if (
+      r.account_label != null &&
+      (typeof r.account_label !== 'string' || !isValidSubscriptionAccount(r.account_label))
+    ) {
+      throw new Error('Backup contains an invalid subscription account.')
     }
   }
   return doc as BackupDocument
@@ -104,41 +127,47 @@ export async function importBackup(raw: unknown, confirmed: boolean): Promise<vo
   const doc = validateBackup(raw)
   const db = await getDatabase()
 
-  // Replace semantics: clear then insert. Memory + SQLite both support DELETE FROM.
-  await db.execute('DELETE FROM subscriptions')
-  await db.execute('DELETE FROM preferences')
+  await db.transaction(async () => {
+    await db.execute('DELETE FROM subscriptions')
+    await db.execute('DELETE FROM preferences')
 
-  for (const [key, value] of Object.entries(doc.preferences)) {
-    await db.execute('INSERT OR REPLACE INTO preferences (key, value) VALUES (?, ?)', [key, value])
-  }
+    for (const [key, value] of Object.entries(doc.preferences)) {
+      await db.execute('INSERT OR REPLACE INTO preferences (key, value) VALUES (?, ?)', [
+        key,
+        value,
+      ])
+    }
 
-  for (const row of doc.subscriptions) {
-    await db.execute(
-      `INSERT INTO subscriptions (
-        id, name, amount_minor, currency, billing_interval, billing_anchor_day,
-        next_billing_date, category, plan_name, payment_method_label, status,
-        reminder_enabled, created_at, updated_at, deleted_at, version
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        String(row.id),
-        String(row.name),
-        Number(row.amount_minor),
-        String(row.currency ?? 'CNY'),
-        String(row.billing_interval),
-        Number(row.billing_anchor_day ?? 1),
-        String(row.next_billing_date),
-        String(row.category ?? 'Other'),
-        row.plan_name == null ? null : String(row.plan_name),
-        row.payment_method_label == null ? null : String(row.payment_method_label),
-        String(row.status ?? 'active'),
-        Number(row.reminder_enabled ?? 1),
-        String(row.created_at ?? new Date().toISOString()),
-        String(row.updated_at ?? new Date().toISOString()),
-        row.deleted_at == null ? null : String(row.deleted_at),
-        Number(row.version ?? 1),
-      ],
-    )
-  }
+    for (const row of doc.subscriptions) {
+      await db.execute(
+        `INSERT INTO subscriptions (
+          id, name, amount_minor, currency, billing_interval, billing_anchor_day,
+          next_billing_date, category, plan_name, payment_method_label, icon_key,
+          account_label, status, reminder_enabled, created_at, updated_at, deleted_at, version
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          String(row.id),
+          String(row.name),
+          Number(row.amount_minor),
+          String(row.currency ?? 'CNY'),
+          String(row.billing_interval),
+          Number(row.billing_anchor_day ?? 1),
+          String(row.next_billing_date),
+          String(row.category ?? 'Other'),
+          row.plan_name == null ? null : String(row.plan_name),
+          row.payment_method_label == null ? null : String(row.payment_method_label),
+          String(row.icon_key ?? 'auto'),
+          row.account_label == null ? null : String(row.account_label),
+          String(row.status ?? 'active'),
+          Number(row.reminder_enabled ?? 1),
+          String(row.created_at ?? new Date().toISOString()),
+          String(row.updated_at ?? new Date().toISOString()),
+          row.deleted_at == null ? null : String(row.deleted_at),
+          Number(row.version ?? 1),
+        ],
+      )
+    }
+  })
 
   const restored = await listSubscriptions({ includeCancelled: true })
   await reconcileNotifications(restored)

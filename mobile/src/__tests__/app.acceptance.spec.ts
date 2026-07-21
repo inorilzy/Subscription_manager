@@ -56,6 +56,8 @@ async function fillAndSubmitSubscription(
     category?: string
     planName?: string
     paymentMethodLabel?: string
+    accountLabel?: string
+    iconKey?: string
     billingInterval?: 'monthly' | 'yearly'
   },
 ) {
@@ -80,6 +82,12 @@ async function fillAndSubmitSubscription(
     await wrapper
       .get('[data-testid="subscription-payment-method"]')
       .setValue(values.paymentMethodLabel)
+  }
+  await wrapper
+    .get('[data-testid="subscription-account"]')
+    .setValue(values.accountLabel ?? 'test@example.com')
+  if (values.iconKey) {
+    await wrapper.get(`[data-testid="subscription-icon-${values.iconKey}"]`).setValue(true)
   }
 
   await wrapper.get('[data-testid="subscription-form"]').trigger('submit')
@@ -196,6 +204,115 @@ describe('first monthly subscription', () => {
 
     await openDestination(wrapper, 'nav-overview', '/')
     expect(wrapper.text()).toContain('Netflix')
+  })
+
+  it('persists an AI service icon and account identifier across views and restart', async () => {
+    let wrapper = await mountApp()
+
+    await openCreateFrom(wrapper, 'subscriptions')
+    expect(wrapper.find('[data-testid="subscription-icon-chatgpt"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="subscription-icon-grok"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="subscription-icon-claude"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="subscription-icon-gemini"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="subscription-icons-more"]').trigger('click')
+    expect(wrapper.find('[data-testid="subscription-icon-gemini"]').exists()).toBe(true)
+
+    await fillAndSubmitSubscription(wrapper, {
+      name: 'Gemini Advanced',
+      amount: '20.00',
+      nextBillingDate: '2030-07-22',
+      category: 'Productivity',
+      accountLabel: 'work@example.com',
+      iconKey: 'gemini',
+    })
+
+    expect(wrapper.get('[data-testid="subscription-account"]').text()).toBe('work@example.com')
+    expect(
+      wrapper.get('[data-testid="subscription-icon-rendered"]').attributes('data-icon-key'),
+    ).toBe('gemini')
+
+    const id = wrapper.get('[data-testid="subscription-item"]').attributes('data-id')!
+    await openDestination(wrapper, 'nav-overview', '/')
+    expect(wrapper.get('[data-testid="subscription-account"]').text()).toBe('work@example.com')
+    expect(
+      wrapper.get('[data-testid="subscription-icon-rendered"]').attributes('data-icon-key'),
+    ).toBe('gemini')
+
+    await router.push({ name: 'subscription-detail', params: { id } })
+    await flushPromises()
+    await nextTick()
+    expect(wrapper.get('[data-testid="subscription-account"]').text()).toBe('work@example.com')
+    expect(
+      wrapper.get('[data-testid="subscription-icon-rendered"]').attributes('data-icon-key'),
+    ).toBe('gemini')
+
+    await router.push({ name: 'subscription-edit', params: { id } })
+    await flushPromises()
+    await nextTick()
+    expect(wrapper.get('[data-testid="subscription-account"]').element).toHaveProperty(
+      'value',
+      'work@example.com',
+    )
+    expect(wrapper.get('[data-testid="subscription-icon-gemini"]').element).toHaveProperty(
+      'checked',
+      true,
+    )
+
+    await wrapper.get('[data-testid="subscription-account"]').setValue('personal@example.com')
+    await wrapper.get('[data-testid="subscription-icon-claude"]').setValue(true)
+    await wrapper.get('[data-testid="subscription-form"]').trigger('submit')
+    await flushPromises()
+    await nextTick()
+    expect(router.currentRoute.value.name).toBe('subscription-detail')
+    expect(wrapper.get('[data-testid="subscription-account"]').text()).toBe('personal@example.com')
+    expect(
+      wrapper.get('[data-testid="subscription-icon-rendered"]').attributes('data-icon-key'),
+    ).toBe('claude')
+
+    await reinitializeDatabaseKeepingDataForTests()
+    wrapper.unmount()
+    document.body.innerHTML = ''
+    wrapper = await mountApp()
+    await openDestination(wrapper, 'nav-subscriptions', '/subscriptions')
+    expect(wrapper.get('[data-testid="subscription-account"]').text()).toBe('personal@example.com')
+    expect(
+      wrapper.get('[data-testid="subscription-icon-rendered"]').attributes('data-icon-key'),
+    ).toBe('claude')
+  })
+
+  it('requires an account email or phone number', async () => {
+    const wrapper = await mountApp()
+    await openCreateFrom(wrapper, 'subscriptions')
+
+    await wrapper.get('[data-testid="subscription-name"]').setValue('Missing Account')
+    await wrapper.get('[data-testid="subscription-amount"]').setValue('20.00')
+    await wrapper.get('[data-testid="subscription-next-billing-date"]').setValue('2030-07-22')
+    await wrapper.get('[data-testid="subscription-form"]').trigger('submit')
+    await flushPromises()
+    await nextTick()
+
+    expect(router.currentRoute.value.name).toBe('subscription-create')
+    expect(wrapper.get('[data-testid="subscription-form-error"]').text()).toMatch(
+      /required|请填写.*邮箱|手机号/i,
+    )
+  })
+
+  it('rejects an account identifier that is neither an email nor a phone number', async () => {
+    const wrapper = await mountApp()
+    await openCreateFrom(wrapper, 'subscriptions')
+
+    await fillAndSubmitSubscription(wrapper, {
+      name: 'Invalid Account',
+      amount: '20.00',
+      nextBillingDate: '2030-07-22',
+      accountLabel: 'not-an-account',
+    })
+
+    expect(router.currentRoute.value.name).toBe('subscription-create')
+    expect(wrapper.get('[data-testid="subscription-form-error"]').text()).toMatch(
+      /email|phone|邮箱|手机号/i,
+    )
   })
 
   it('rejects invalid amounts without creating a subscription', async () => {
@@ -486,4 +603,3 @@ describe('subscription lifecycle', () => {
     )
   })
 })
-

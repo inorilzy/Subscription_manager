@@ -4,8 +4,15 @@ import { useRoute, useRouter } from 'vue-router'
 import { addCategory, listCategories } from '../application/categories'
 import { getSubscription, updateSubscription } from '../application/subscriptions'
 import PageTopBar from '../components/PageTopBar.vue'
-import { currencyLabel, majorInputFromMinor, SUPPORTED_CURRENCIES, type CurrencyCode } from '../domain/money'
+import SubscriptionIconPicker from '../components/SubscriptionIconPicker.vue'
+import {
+  currencyLabel,
+  majorInputFromMinor,
+  SUPPORTED_CURRENCIES,
+  type CurrencyCode,
+} from '../domain/money'
 import { ValidationError } from '../domain/subscription'
+import type { SubscriptionIconKey } from '../domain/subscription-icons'
 import { usePreferencesStore } from '../stores/preferences'
 
 const route = useRoute()
@@ -20,6 +27,8 @@ const nextBillingDate = ref('')
 const category = ref('')
 const planName = ref('')
 const paymentMethodLabel = ref('')
+const iconKey = ref<SubscriptionIconKey>('auto')
+const accountLabel = ref('')
 const billingInterval = ref<'monthly' | 'yearly'>('monthly')
 const errorMessage = ref<string | null>(null)
 const submitting = ref(false)
@@ -58,6 +67,8 @@ function localizeValidation(message: string): string {
     'Amount must be greater than zero.': preferences.t('error.amountPositive'),
     'Use a short label like “Visa ending 4242”. Do not enter full card numbers or CVV.':
       preferences.t('error.paymentSensitive'),
+    'Account email or phone number is required.': preferences.t('error.accountRequired'),
+    'Enter a valid email address or phone number.': preferences.t('error.accountInvalid'),
     'Could not save the subscription. Please try again.': preferences.t('error.saveFailed'),
     'Subscription not found.': preferences.t('detail.notFound'),
   }
@@ -80,6 +91,8 @@ onMounted(async () => {
   category.value = existing.category === 'Other' ? '' : existing.category
   planName.value = existing.planName ?? ''
   paymentMethodLabel.value = existing.paymentMethodLabel ?? ''
+  iconKey.value = existing.iconKey
+  accountLabel.value = existing.accountLabel ?? ''
   billingInterval.value = existing.billingInterval
   loaded.value = true
 })
@@ -109,6 +122,8 @@ async function onSubmit() {
       category: category.value || null,
       planName: planName.value || null,
       paymentMethodLabel: paymentMethodLabel.value || null,
+      iconKey: iconKey.value,
+      accountLabel: accountLabel.value,
       billingInterval: billingInterval.value,
       currency: currency.value,
     })
@@ -175,6 +190,8 @@ async function onCancel() {
           />
         </div>
 
+        <SubscriptionIconPicker v-model="iconKey" :name="name" :category="category || 'Other'" />
+
         <div class="grid gap-5 sm:grid-cols-2">
           <div class="space-y-2">
             <label class="field-label" for="subscription-amount">
@@ -222,7 +239,9 @@ async function onCancel() {
             <option value="monthly">{{ preferences.t('create.monthly') }}</option>
             <option value="yearly">{{ preferences.t('create.yearly') }}</option>
           </select>
-          <div class="grid grid-cols-2 gap-2 rounded-2xl border-2 border-outline-variant bg-surface-container-low p-2">
+          <div
+            class="grid grid-cols-2 gap-2 rounded-2xl border-2 border-outline-variant bg-surface-container-low p-2"
+          >
             <label class="field-label m-0 block">
               <input
                 v-model="billingInterval"
@@ -271,7 +290,9 @@ async function onCancel() {
         <div class="space-y-2">
           <label class="field-label" for="subscription-category">
             {{ preferences.t('create.category') }}
-            <span class="font-normal text-on-surface-variant">{{ preferences.t('create.optional') }}</span>
+            <span class="font-normal text-on-surface-variant">{{
+              preferences.t('create.optional')
+            }}</span>
           </label>
           <select
             id="subscription-category"
@@ -323,7 +344,9 @@ async function onCancel() {
         <div class="space-y-2">
           <label class="field-label" for="subscription-plan-name">
             {{ preferences.t('create.planName') }}
-            <span class="font-normal text-on-surface-variant">{{ preferences.t('create.optional') }}</span>
+            <span class="font-normal text-on-surface-variant">{{
+              preferences.t('create.optional')
+            }}</span>
           </label>
           <input
             id="subscription-plan-name"
@@ -336,9 +359,29 @@ async function onCancel() {
         </div>
 
         <div class="space-y-2">
+          <label class="field-label" for="subscription-account">
+            {{ preferences.t('create.account') }}
+          </label>
+          <input
+            id="subscription-account"
+            v-model="accountLabel"
+            data-testid="subscription-account"
+            type="text"
+            required
+            maxlength="120"
+            autocomplete="off"
+            class="field-recessed"
+            :placeholder="preferences.t('create.accountPlaceholder')"
+          />
+          <p class="field-help">{{ preferences.t('create.accountHint') }}</p>
+        </div>
+
+        <div class="space-y-2">
           <label class="field-label" for="subscription-payment-method">
             {{ preferences.t('create.paymentMethod') }}
-            <span class="font-normal text-on-surface-variant">{{ preferences.t('create.optional') }}</span>
+            <span class="font-normal text-on-surface-variant">{{
+              preferences.t('create.optional')
+            }}</span>
           </label>
           <input
             id="subscription-payment-method"

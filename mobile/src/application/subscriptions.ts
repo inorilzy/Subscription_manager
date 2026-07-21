@@ -8,11 +8,16 @@ import {
   type Subscription,
   type SubscriptionCategory,
   ValidationError,
+  isValidSubscriptionAccount,
   normalizeBillingInterval,
   normalizeCategory,
   normalizeStatus,
   parseDateOnly,
 } from '../domain/subscription'
+import {
+  normalizeSubscriptionIconKey,
+  type SubscriptionIconKey,
+} from '../domain/subscription-icons'
 
 export interface UpdateSubscriptionInput extends CreateSubscriptionInput {
   id: string
@@ -36,8 +41,9 @@ function mapRow(row: Record<string, unknown>): Subscription {
     nextBillingDate: String(row.next_billing_date),
     category: normalizeCategory(String(row.category)),
     planName: row.plan_name == null ? null : String(row.plan_name),
-    paymentMethodLabel:
-      row.payment_method_label == null ? null : String(row.payment_method_label),
+    paymentMethodLabel: row.payment_method_label == null ? null : String(row.payment_method_label),
+    iconKey: normalizeSubscriptionIconKey(row.icon_key),
+    accountLabel: row.account_label == null ? null : String(row.account_label),
     status: normalizeStatus(String(row.status)),
     reminderEnabled: Number(row.reminder_enabled) === 1,
     createdAt: String(row.created_at),
@@ -61,6 +67,8 @@ function validateCreateInput(input: CreateSubscriptionInput): {
   category: SubscriptionCategory
   planName: string | null
   paymentMethodLabel: string | null
+  iconKey: SubscriptionIconKey
+  accountLabel: string
   currency: string
   billingInterval: 'monthly' | 'yearly'
   billingAnchorDay: number
@@ -94,6 +102,14 @@ function validateCreateInput(input: CreateSubscriptionInput): {
   }
 
   const planName = input.planName?.trim() || null
+  const accountLabel = input.accountLabel?.trim()
+  if (!accountLabel) {
+    throw new ValidationError('Account email or phone number is required.')
+  }
+  if (!isValidSubscriptionAccount(accountLabel)) {
+    throw new ValidationError('Enter a valid email address or phone number.')
+  }
+  const iconKey = normalizeSubscriptionIconKey(input.iconKey)
   const category = normalizeCategory(input.category)
   const billingInterval = normalizeBillingInterval(input.billingInterval)
   const billingAnchorDay = anchorDayFromDate(nextBillingDate)
@@ -105,6 +121,8 @@ function validateCreateInput(input: CreateSubscriptionInput): {
     category,
     planName,
     paymentMethodLabel,
+    iconKey,
+    accountLabel,
     currency,
     billingInterval,
     billingAnchorDay,
@@ -152,9 +170,7 @@ async function advanceIfNeeded(subscription: Subscription): Promise<Subscription
   }
 }
 
-export async function createSubscription(
-  input: CreateSubscriptionInput,
-): Promise<Subscription> {
+export async function createSubscription(input: CreateSubscriptionInput): Promise<Subscription> {
   const validated = validateCreateInput(input)
   const currency = validated.currency
 
@@ -170,6 +186,8 @@ export async function createSubscription(
     category: validated.category,
     planName: validated.planName,
     paymentMethodLabel: validated.paymentMethodLabel,
+    iconKey: validated.iconKey,
+    accountLabel: validated.accountLabel,
     status: 'active',
     reminderEnabled: true,
     createdAt: now,
@@ -183,9 +201,9 @@ export async function createSubscription(
     await db.execute(
       `INSERT INTO subscriptions (
         id, name, amount_minor, currency, billing_interval, billing_anchor_day,
-        next_billing_date, category, plan_name, payment_method_label, status,
-        reminder_enabled, created_at, updated_at, deleted_at, version
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        next_billing_date, category, plan_name, payment_method_label, icon_key,
+        account_label, status, reminder_enabled, created_at, updated_at, deleted_at, version
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         subscription.id,
         subscription.name,
@@ -197,6 +215,8 @@ export async function createSubscription(
         subscription.category,
         subscription.planName,
         subscription.paymentMethodLabel,
+        subscription.iconKey,
+        subscription.accountLabel,
         subscription.status,
         subscription.reminderEnabled ? 1 : 0,
         subscription.createdAt,
@@ -236,10 +256,9 @@ export async function listSubscriptions(options?: {
 
 export async function getSubscription(id: string): Promise<Subscription | null> {
   const db = await getDatabase()
-  const result = await db.query(
-    `SELECT * FROM subscriptions WHERE id = ? AND deleted_at IS NULL`,
-    [id],
-  )
+  const result = await db.query(`SELECT * FROM subscriptions WHERE id = ? AND deleted_at IS NULL`, [
+    id,
+  ])
   const row = result.values?.[0]
   if (!row) return null
   return advanceIfNeeded(mapRow(row))
@@ -254,9 +273,7 @@ export async function getOverviewSnapshot(): Promise<{
   const totals = new Map<string, number>()
   for (const item of subscriptions) {
     const amount =
-      item.billingInterval === 'yearly'
-        ? Math.round(item.amountMinor / 12)
-        : item.amountMinor
+      item.billingInterval === 'yearly' ? Math.round(item.amountMinor / 12) : item.amountMinor
     totals.set(item.currency, (totals.get(item.currency) ?? 0) + amount)
   }
   const monthlyByCurrency = [...totals.entries()]
@@ -270,9 +287,7 @@ export async function getOverviewSnapshot(): Promise<{
   }
 }
 
-export async function updateSubscription(
-  input: UpdateSubscriptionInput,
-): Promise<Subscription> {
+export async function updateSubscription(input: UpdateSubscriptionInput): Promise<Subscription> {
   const existing = await getSubscription(input.id)
   if (!existing) {
     throw new ValidationError('Subscription not found.')
@@ -292,6 +307,8 @@ export async function updateSubscription(
     category: validated.category,
     planName: validated.planName,
     paymentMethodLabel: validated.paymentMethodLabel,
+    iconKey: validated.iconKey,
+    accountLabel: validated.accountLabel,
     updatedAt: now,
     version: nextVersion,
   }
@@ -302,7 +319,7 @@ export async function updateSubscription(
       `UPDATE subscriptions SET
         name = ?, amount_minor = ?, currency = ?, billing_interval = ?, billing_anchor_day = ?,
         next_billing_date = ?, category = ?, plan_name = ?, payment_method_label = ?,
-        updated_at = ?, version = ?
+        icon_key = ?, account_label = ?, updated_at = ?, version = ?
        WHERE id = ? AND deleted_at IS NULL`,
       [
         updated.name,
@@ -314,6 +331,8 @@ export async function updateSubscription(
         updated.category,
         updated.planName,
         updated.paymentMethodLabel,
+        updated.iconKey,
+        updated.accountLabel,
         updated.updatedAt,
         updated.version,
         updated.id,

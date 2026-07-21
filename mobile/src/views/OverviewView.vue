@@ -44,7 +44,8 @@ function progressFor(item: Subscription) {
 function urgencyClass(item: Subscription): string {
   const days = progressFor(item).daysLeft
   if (days <= 3) return 'border-error/20 bg-error-container text-on-error-container'
-  if (days <= 14) return 'border-tertiary-container/30 bg-tertiary-fixed text-on-tertiary-fixed-variant'
+  if (days <= 14)
+    return 'border-tertiary-container/30 bg-tertiary-fixed text-on-tertiary-fixed-variant'
   return 'border-secondary-fixed-dim/30 bg-secondary-fixed text-on-secondary-fixed-variant'
 }
 
@@ -97,7 +98,10 @@ async function seeAll() {
           </p>
         </div>
 
-        <div class="relative z-10 rounded-xl border-2 border-surface-variant bg-surface-container-lowest p-4 text-center" style="border-bottom-width: 4px">
+        <div
+          class="relative z-10 rounded-xl border-2 border-surface-variant bg-surface-container-lowest p-4 text-center"
+          style="border-bottom-width: 4px"
+        >
           <p class="label-small tracking-[0.12em] text-on-surface-variant uppercase">
             {{ preferences.t('overview.active') }}
           </p>
@@ -113,7 +117,10 @@ async function seeAll() {
               : 'See Stats for spending analysis.'
           }}
         </p>
-        <p v-if="activeCount === 0" class="relative z-10 text-center text-on-tertiary-fixed-variant">
+        <p
+          v-if="activeCount === 0"
+          class="relative z-10 text-center text-on-tertiary-fixed-variant"
+        >
           {{ preferences.t('overview.empty') }}
         </p>
       </section>
@@ -152,7 +159,11 @@ async function seeAll() {
           >
             <div class="flex items-center justify-between gap-3">
               <div class="flex min-w-0 items-center gap-3">
-                <SubscriptionIcon :category="item.category" />
+                <SubscriptionIcon
+                  :category="item.category"
+                  :name="item.name"
+                  :icon-key="item.iconKey"
+                />
                 <div class="min-w-0">
                   <p class="truncate font-headline text-lg font-bold text-on-surface">
                     {{ item.name }}
@@ -160,6 +171,13 @@ async function seeAll() {
                   <p class="label-small text-on-surface-variant">
                     {{ preferences.formatAmount(item.amountMinor, item.currency as never) }}
                     / {{ cycleLabel(item.billingInterval) }}
+                  </p>
+                  <p
+                    v-if="item.accountLabel"
+                    class="truncate text-xs font-bold text-on-surface-variant"
+                    data-testid="subscription-account"
+                  >
+                    {{ item.accountLabel }}
                   </p>
                 </div>
               </div>

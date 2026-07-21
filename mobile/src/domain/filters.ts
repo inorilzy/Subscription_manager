@@ -1,4 +1,9 @@
-import type { BillingInterval, Subscription, SubscriptionCategory, SubscriptionStatus } from './subscription'
+import type {
+  BillingInterval,
+  Subscription,
+  SubscriptionCategory,
+  SubscriptionStatus,
+} from './subscription'
 
 export interface SubscriptionFilters {
   query: string
@@ -25,7 +30,13 @@ export function filterSubscriptions(
     if (filters.billingInterval !== 'all' && item.billingInterval !== filters.billingInterval) {
       return false
     }
-    if (q && !item.name.toLowerCase().includes(q)) return false
+    if (
+      q &&
+      !item.name.toLowerCase().includes(q) &&
+      !item.accountLabel?.toLowerCase().includes(q)
+    ) {
+      return false
+    }
     return true
   })
 }

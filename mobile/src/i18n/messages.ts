@@ -35,11 +35,18 @@ export type MessageKey =
   | 'create.newCategory'
   | 'create.newCategoryPlaceholder'
   | 'create.newCategoryAdd'
+  | 'create.icon'
+  | 'create.iconHint'
+  | 'create.iconAuto'
+  | 'create.iconMore'
   | 'common.perDay'
   | 'common.daysLeft'
   | 'create.planName'
   | 'create.paymentMethod'
   | 'create.paymentHint'
+  | 'create.account'
+  | 'create.accountHint'
+  | 'create.accountPlaceholder'
   | 'create.optional'
   | 'create.cancel'
   | 'create.save'
@@ -53,6 +60,7 @@ export type MessageKey =
   | 'detail.cycle'
   | 'detail.nextBillingDate'
   | 'detail.countdown'
+  | 'detail.account'
   | 'detail.plan'
   | 'detail.payment'
   | 'detail.status'
@@ -118,6 +126,8 @@ export type MessageKey =
   | 'error.amountTooLarge'
   | 'error.amountPositive'
   | 'error.paymentSensitive'
+  | 'error.accountRequired'
+  | 'error.accountInvalid'
   | 'error.saveFailed'
   | 'error.missingKey'
 
@@ -143,8 +153,7 @@ const en: Record<MessageKey, string> = {
   'overview.squad': 'Current subscriptions',
   'overview.active': 'Active',
   'overview.monthly': 'Monthly',
-  'overview.empty':
-    'No subscriptions yet. Add your first recurring expense to see it here.',
+  'overview.empty': 'No subscriptions yet. Add your first recurring expense to see it here.',
   'overview.upcoming': 'Upcoming payments',
   'subscriptions.title': 'Subscriptions',
   'subscriptions.subtitle': 'All tracked recurring services',
@@ -163,10 +172,17 @@ const en: Record<MessageKey, string> = {
   'create.newCategory': 'New category',
   'create.newCategoryPlaceholder': 'e.g. Education',
   'create.newCategoryAdd': 'Add category',
+  'create.icon': 'Service icon',
+  'create.iconHint': 'Choose one, or let SubScout match the service name automatically.',
+  'create.iconAuto': 'Automatic',
+  'create.iconMore': 'More icons',
   'create.planName': 'Plan Name',
   'create.paymentMethod': 'Payment Method Label',
-  'create.paymentHint':
-    'Display label only. Do not enter full card numbers, CVV, or bank logins.',
+  'create.paymentHint': 'Display label only. Do not enter full card numbers, CVV, or bank logins.',
+  'create.account': 'Subscription Account',
+  'create.accountHint':
+    'Required. Enter the email or phone number used for this subscription. Stored only on this device.',
+  'create.accountPlaceholder': 'e.g. name@example.com or +1 555 0100',
   'create.optional': '(optional)',
   'create.cancel': 'Cancel',
   'create.save': 'Save',
@@ -182,6 +198,7 @@ const en: Record<MessageKey, string> = {
   'detail.countdown': 'Countdown',
   'detail.plan': 'Plan',
   'detail.payment': 'Payment',
+  'detail.account': 'Account',
   'detail.status': 'Status',
   'detail.active': 'Active',
   'detail.cancelled': 'Cancelled',
@@ -248,12 +265,13 @@ const en: Record<MessageKey, string> = {
   'error.dateRequired': 'Next billing date is required.',
   'error.dateInvalid': 'Next billing date must be a valid date.',
   'error.amountRequired': 'Amount is required.',
-  'error.amountInvalid':
-    'Enter a valid amount greater than zero with up to two decimal places.',
+  'error.amountInvalid': 'Enter a valid amount greater than zero with up to two decimal places.',
   'error.amountTooLarge': 'Amount is too large.',
   'error.amountPositive': 'Amount must be greater than zero.',
   'error.paymentSensitive':
     'Use a short label like “Visa ending 4242”. Do not enter full card numbers or CVV.',
+  'error.accountRequired': 'An account email or phone number is required.',
+  'error.accountInvalid': 'Enter a valid email address or phone number.',
   'error.saveFailed': 'Could not save the subscription. Please try again.',
   'error.missingKey': 'Missing translation',
 }
@@ -290,8 +308,15 @@ const zh: Record<MessageKey, string> = {
   'create.newCategoryPlaceholder': '例如：教育',
   'create.newCategoryAdd': '添加分类',
   'create.planName': '套餐名称',
+  'create.icon': '服务图标',
+  'create.iconHint': '可选择图标，也可让 SubScout 根据服务名称自动匹配。',
+  'create.iconAuto': '自动匹配',
+  'create.iconMore': '更多图标',
   'create.paymentMethod': '支付方式标签',
   'create.paymentHint': '仅用于显示。请勿输入完整卡号、CVV 或银行登录信息。',
+  'create.account': '订阅账号',
+  'create.accountHint': '必填。请输入用于此订阅的邮箱或手机号，仅保存在本设备。',
+  'create.accountPlaceholder': '例如：name@example.com 或 +86 138 0013 8000',
   'create.optional': '（可选）',
   'create.cancel': '取消',
   'create.save': '保存',
@@ -307,6 +332,7 @@ const zh: Record<MessageKey, string> = {
   'detail.countdown': '倒计时',
   'detail.plan': '套餐',
   'detail.payment': '支付',
+  'detail.account': '账号',
   'detail.status': '状态',
   'detail.active': '有效',
   'detail.cancelled': '已取消',
@@ -342,8 +368,7 @@ const zh: Record<MessageKey, string> = {
   'settings.webdavUpload': '上传备份',
   'settings.webdavDownload': '下载并恢复',
   'settings.webdavSave': '保存 WebDAV 设置',
-  'settings.webdavHint':
-    '直接连接你自己的 WebDAV 服务器。凭证只保存在本机，没有 SubScout 云后端。',
+  'settings.webdavHint': '直接连接你自己的 WebDAV 服务器。凭证只保存在本机，没有 SubScout 云后端。',
   'settings.webdavTestOk': '连接成功。',
   'settings.webdavUploadOk': '备份已上传到 WebDAV。',
   'settings.webdavDownloadConfirm': '下载将用远程备份完整替换本机订阅和偏好设置。',
@@ -353,8 +378,7 @@ const zh: Record<MessageKey, string> = {
   'settings.english': 'English',
   'settings.chinese': '简体中文',
   'settings.currencyWarningTitle': '更改货币？',
-  'settings.currencyWarningBody':
-    '现有金额不会按汇率换算，只会在新货币标签下重新解释数值。',
+  'settings.currencyWarningBody': '现有金额不会按汇率换算，只会在新货币标签下重新解释数值。',
   'settings.currencyConfirm': '更改货币',
   'settings.currencyCancel': '取消',
   'common.today': '今天',
@@ -373,8 +397,9 @@ const zh: Record<MessageKey, string> = {
   'error.amountInvalid': '请输入大于零且最多两位小数的有效金额。',
   'error.amountTooLarge': '金额过大。',
   'error.amountPositive': '金额必须大于零。',
-  'error.paymentSensitive':
-    '请使用简短标签，例如“Visa 尾号 4242”。不要输入完整卡号或 CVV。',
+  'error.paymentSensitive': '请使用简短标签，例如“Visa 尾号 4242”。不要输入完整卡号或 CVV。',
+  'error.accountRequired': '请填写用于此订阅的邮箱或手机号。',
+  'error.accountInvalid': '请输入有效的邮箱或手机号。',
   'error.saveFailed': '无法保存订阅，请重试。',
   'error.missingKey': '缺少翻译',
 }
@@ -391,7 +416,6 @@ export function isLanguageCode(value: string): value is LanguageCode {
 export function isThemeMode(value: string): value is ThemeMode {
   return value === 'light' || value === 'dark' || value === 'system'
 }
-
 
 export function translate(
   language: LanguageCode,

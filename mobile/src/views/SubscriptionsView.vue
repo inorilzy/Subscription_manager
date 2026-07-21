@@ -117,9 +117,13 @@ async function openDetail(id: string) {
               data-testid="subscription-search"
               type="search"
               class="field-recessed rounded-full pr-4 pl-12"
-              :placeholder="preferences.language === 'zh-CN' ? '搜索订阅…' : 'Search subs…'"
+              :placeholder="
+                preferences.language === 'zh-CN' ? '搜索名称或账号…' : 'Search name or account…'
+              "
               :aria-label="
-                preferences.language === 'zh-CN' ? '按名称搜索订阅' : 'Search subscriptions by name'
+                preferences.language === 'zh-CN'
+                  ? '按名称或账号搜索订阅'
+                  : 'Search subscriptions by name or account'
               "
             />
           </label>
@@ -133,11 +137,7 @@ async function openDetail(id: string) {
             <SlidersHorizontal :size="21" aria-hidden="true" />
             {{ preferences.language === 'zh-CN' ? '筛选' : 'Filter' }}
           </button>
-          <button
-            type="button"
-            class="tactile-btn pill-button"
-            @click="openCreate"
-          >
+          <button type="button" class="tactile-btn pill-button" @click="openCreate">
             <Plus :size="22" :stroke-width="2.8" aria-hidden="true" />
             {{ preferences.t('subscriptions.add') }}
           </button>
@@ -174,7 +174,9 @@ async function openDetail(id: string) {
               v-model="filters.billingInterval"
               data-testid="filter-interval"
               class="field-recessed"
-              :aria-label="preferences.language === 'zh-CN' ? '按扣费周期筛选' : 'Filter by billing cycle'"
+              :aria-label="
+                preferences.language === 'zh-CN' ? '按扣费周期筛选' : 'Filter by billing cycle'
+              "
             >
               <option value="all">
                 {{ preferences.language === 'zh-CN' ? '全部周期' : 'All cycles' }}
@@ -260,14 +262,28 @@ async function openDetail(id: string) {
             <div class="space-y-4" :class="{ 'pt-3': item.billingInterval === 'yearly' }">
               <div class="flex items-start justify-between gap-3">
                 <div class="flex min-w-0 items-center gap-4">
-                  <SubscriptionIcon :category="item.category" large />
+                  <SubscriptionIcon
+                    :category="item.category"
+                    :name="item.name"
+                    :icon-key="item.iconKey"
+                    large
+                  />
                   <div class="min-w-0">
                     <p class="truncate font-headline text-xl font-bold text-on-surface">
                       {{ item.name }}
                     </p>
-                    <span class="chip-pill mt-1 border-surface-container-highest bg-surface-container-low text-on-surface-variant">
+                    <span
+                      class="chip-pill mt-1 border-surface-container-highest bg-surface-container-low text-on-surface-variant"
+                    >
                       {{ item.category }}
                     </span>
+                    <p
+                      v-if="item.accountLabel"
+                      class="mt-1 truncate text-xs font-bold text-on-surface-variant"
+                      data-testid="subscription-account"
+                    >
+                      {{ item.accountLabel }}
+                    </p>
                   </div>
                 </div>
                 <div class="shrink-0 text-right">
@@ -289,7 +305,9 @@ async function openDetail(id: string) {
                     <span class="text-on-surface-variant">
                       {{ preferences.t('detail.nextBillingDate') }}
                     </span>
-                    <span :class="item.status === 'active' ? 'text-primary' : 'text-on-surface-variant'">
+                    <span
+                      :class="item.status === 'active' ? 'text-primary' : 'text-on-surface-variant'"
+                    >
                       {{
                         item.status === 'active'
                           ? countdown(item.nextBillingDate)
@@ -308,7 +326,9 @@ async function openDetail(id: string) {
                   >
                     <div
                       class="mini-progress-fill"
-                      :class="item.billingInterval === 'yearly' ? 'bg-primary' : 'bg-primary-container'"
+                      :class="
+                        item.billingInterval === 'yearly' ? 'bg-primary' : 'bg-primary-container'
+                      "
                       :style="{ width: `${Math.round(progressFor(item).fraction * 100)}%` }"
                     />
                   </div>
@@ -323,9 +343,7 @@ async function openDetail(id: string) {
                 <span
                   class="cycle-badge"
                   :class="
-                    item.billingInterval === 'yearly'
-                      ? 'cycle-badge-yearly'
-                      : 'cycle-badge-monthly'
+                    item.billingInterval === 'yearly' ? 'cycle-badge-yearly' : 'cycle-badge-monthly'
                   "
                   data-testid="billing-cycle-badge"
                 >
@@ -334,9 +352,7 @@ async function openDetail(id: string) {
                 <span
                   class="chip-pill"
                   :class="
-                    item.status === 'active'
-                      ? 'status-badge-active'
-                      : 'status-badge-cancelled'
+                    item.status === 'active' ? 'status-badge-active' : 'status-badge-cancelled'
                   "
                 >
                   {{

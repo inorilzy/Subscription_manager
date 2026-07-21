@@ -14,10 +14,11 @@ export interface QueryResult {
 export interface DatabaseClient {
   execute(statement: string, params?: SqlParams): Promise<void>
   query(statement: string, params?: SqlParams): Promise<QueryResult>
+  transaction<T>(work: () => Promise<T>): Promise<T>
   close(): Promise<void>
 }
 
-const SCHEMA_VERSION = 1
+const SCHEMA_VERSION = 2
 const DB_NAME = 'subscout'
 
 const CREATE_STATEMENTS = [
@@ -48,6 +49,17 @@ const CREATE_STATEMENTS = [
     value TEXT NOT NULL
   )`,
 ]
+
+const MIGRATIONS = [
+  { version: 1, statements: [] },
+  {
+    version: 2,
+    statements: [
+      `ALTER TABLE subscriptions ADD COLUMN icon_key TEXT NOT NULL DEFAULT 'auto'`,
+      `ALTER TABLE subscriptions ADD COLUMN account_label TEXT`,
+    ],
+  },
+] as const
 
 class MemoryDatabase implements DatabaseClient {
   private tables = new Map<string, Array<Record<string, unknown>>>()
@@ -139,6 +151,8 @@ class MemoryDatabase implements DatabaseClient {
         category,
         plan_name,
         payment_method_label,
+        icon_key,
+        account_label,
         status,
         reminder_enabled,
         created_at,
@@ -146,7 +160,11 @@ class MemoryDatabase implements DatabaseClient {
         deleted_at,
         version,
       ] = params
-      this.tables.get('subscriptions')!.push({
+      const rows = this.tables.get('subscriptions')!
+      if (rows.some((row) => row.id === id)) {
+        throw new Error('UNIQUE constraint failed: subscriptions.id')
+      }
+      rows.push({
         id,
         name,
         amount_minor,
@@ -157,6 +175,8 @@ class MemoryDatabase implements DatabaseClient {
         category,
         plan_name,
         payment_method_label,
+        icon_key,
+        account_label,
         status,
         reminder_enabled,
         created_at,
@@ -182,6 +202,8 @@ class MemoryDatabase implements DatabaseClient {
           category,
           plan_name,
           payment_method_label,
+          icon_key,
+          account_label,
           updated_at,
           version,
           id,
@@ -198,6 +220,8 @@ class MemoryDatabase implements DatabaseClient {
             category,
             plan_name,
             payment_method_label,
+            icon_key,
+            account_label,
             updated_at,
             version,
           })
@@ -314,6 +338,19 @@ class MemoryDatabase implements DatabaseClient {
     return { values: [] }
   }
 
+  async transaction<T>(work: () => Promise<T>): Promise<T> {
+    const snapshot = new Map<string, Array<Record<string, unknown>>>(
+      [...this.tables.entries()].map(([table, rows]) => [table, rows.map((row) => ({ ...row }))]),
+    )
+    try {
+      return await work()
+    } catch (error) {
+      this.tables = snapshot
+      MemoryDatabase.sharedStore = snapshot
+      throw error
+    }
+  }
+
   async close(): Promise<void> {
     // no-op for in-memory test database
   }
@@ -326,15 +363,32 @@ class MemoryDatabase implements DatabaseClient {
 }
 
 class NativeSqliteDatabase implements DatabaseClient {
+  private inTransaction = false
+
   constructor(private readonly connection: SQLiteDBConnection) {}
 
   async execute(statement: string, params: SqlParams = []): Promise<void> {
-    await this.connection.run(statement, params)
+    await this.connection.run(statement, params, !this.inTransaction)
   }
 
   async query(statement: string, params: SqlParams = []): Promise<QueryResult> {
     const result = await this.connection.query(statement, params)
     return { values: (result.values as Array<Record<string, unknown>> | undefined) ?? [] }
+  }
+
+  async transaction<T>(work: () => Promise<T>): Promise<T> {
+    await this.connection.beginTransaction()
+    this.inTransaction = true
+    try {
+      const result = await work()
+      await this.connection.commitTransaction()
+      return result
+    } catch (error) {
+      await this.connection.rollbackTransaction().catch(() => undefined)
+      throw error
+    } finally {
+      this.inTransaction = false
+    }
   }
 
   async close(): Promise<void> {
@@ -365,8 +419,7 @@ export async function getDatabase(): Promise<DatabaseClient> {
 async function initializeDatabase(options?: { keepData?: boolean }): Promise<DatabaseClient> {
   // Tests and plain browser use the in-memory client so CI stays native-free.
   // Native Android/iOS use Capacitor SQLite for durable on-device storage.
-  const useNative =
-    import.meta.env.MODE !== 'test' && Capacitor.isNativePlatform()
+  const useNative = import.meta.env.MODE !== 'test' && Capacitor.isNativePlatform()
 
   const client = useNative
     ? await openNativeDatabase()
@@ -385,7 +438,13 @@ async function openNativeDatabase(): Promise<DatabaseClient> {
   if (consistency.result && isConn) {
     db = await sqliteConnection.retrieveConnection(DB_NAME, false)
   } else {
-    db = await sqliteConnection.createConnection(DB_NAME, false, 'no-encryption', 1, false)
+    db = await sqliteConnection.createConnection(
+      DB_NAME,
+      false,
+      'no-encryption',
+      SCHEMA_VERSION,
+      false,
+    )
   }
 
   await db.open()
@@ -397,17 +456,24 @@ export async function migrate(client: DatabaseClient): Promise<void> {
     await client.execute(statement)
   }
 
-  const existing = await client.query(
-    'SELECT version FROM schema_migrations WHERE version = ?',
-    [SCHEMA_VERSION],
-  )
-
-  if ((existing.values?.length ?? 0) === 0) {
-    await client.execute('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)', [
-      SCHEMA_VERSION,
-      new Date().toISOString(),
+  for (const migration of MIGRATIONS) {
+    const existing = await client.query('SELECT version FROM schema_migrations WHERE version = ?', [
+      migration.version,
     ])
+    if ((existing.values?.length ?? 0) > 0) continue
+
+    await client.transaction(async () => {
+      for (const statement of migration.statements) {
+        await client.execute(statement)
+      }
+      await client.execute('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)', [
+        migration.version,
+        new Date().toISOString(),
+      ])
+    })
   }
+
+  await client.execute(`PRAGMA user_version = ${SCHEMA_VERSION}`)
 
   await client.execute('INSERT OR IGNORE INTO preferences (key, value) VALUES (?, ?)', [
     'currency',

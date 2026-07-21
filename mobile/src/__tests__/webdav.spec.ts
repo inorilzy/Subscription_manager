@@ -110,6 +110,7 @@ describe('webdav sync operations', () => {
       amountInput: '9.99',
       nextBillingDate: '2030-07-01',
       category: 'Music',
+      accountLabel: 'spotify@example.com',
     })
 
     await uploadBackupToWebDav({

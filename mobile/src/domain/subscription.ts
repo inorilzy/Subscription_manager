@@ -1,4 +1,5 @@
 import { todayDateOnly } from './clock'
+import type { SubscriptionIconKey } from './subscription-icons'
 
 export type BillingInterval = 'monthly' | 'yearly'
 export type SubscriptionStatus = 'active' | 'cancelled'
@@ -23,6 +24,20 @@ export function isValidCategoryName(value: string): boolean {
   return trimmed.length > 0 && trimmed.length <= MAX_CATEGORY_LENGTH
 }
 
+const MAX_ACCOUNT_LABEL_LENGTH = 120
+
+export function isValidSubscriptionAccount(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed || trimmed.length > MAX_ACCOUNT_LABEL_LENGTH) return false
+
+  const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u.test(trimmed)
+  if (isEmail) return true
+
+  const digits = trimmed.replace(/\D/g, '')
+  const isPhone = /^\+?[\d\s().-]+$/u.test(trimmed) && digits.length >= 6 && digits.length <= 15
+  return isPhone
+}
+
 export interface Subscription {
   id: string
   name: string
@@ -34,6 +49,8 @@ export interface Subscription {
   category: SubscriptionCategory
   planName: string | null
   paymentMethodLabel: string | null
+  iconKey: SubscriptionIconKey
+  accountLabel: string | null
   status: SubscriptionStatus
   reminderEnabled: boolean
   createdAt: string
@@ -49,6 +66,8 @@ export interface CreateSubscriptionInput {
   category?: string | null
   planName?: string | null
   paymentMethodLabel?: string | null
+  iconKey?: SubscriptionIconKey | string | null
+  accountLabel: string | null
   currency?: string
   billingInterval?: BillingInterval
 }
