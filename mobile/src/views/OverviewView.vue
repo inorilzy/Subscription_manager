@@ -53,12 +53,12 @@ async function seeAll() {
   <section class="space-y-4">
     <header class="flex items-start justify-between gap-3">
       <div class="space-y-1">
-        <p class="text-sm font-bold uppercase tracking-wide text-primary">
-          {{ preferences.t('overview.greeting') }}
-        </p>
         <h1 class="font-headline text-3xl font-extrabold text-on-surface">
           {{ preferences.t('overview.title') }}
         </h1>
+        <p class="text-sm text-on-surface-variant">
+          {{ preferences.t('overview.greeting') }}
+        </p>
       </div>
       <button
         type="button"
