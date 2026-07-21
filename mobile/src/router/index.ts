@@ -11,6 +11,7 @@ import SubscriptionDetailView from '../views/SubscriptionDetailView.vue'
 import SubscriptionEditView from '../views/SubscriptionEditView.vue'
 import StatsView from '../views/StatsView.vue'
 import SettingsView from '../views/SettingsView.vue'
+import WebDavSettingsView from '../views/WebDavSettingsView.vue'
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
@@ -53,6 +54,12 @@ const routes: RouteRecordRaw[] = [
     name: 'settings',
     component: SettingsView,
     meta: { title: 'Settings' },
+  },
+  {
+    path: '/settings/webdav',
+    name: 'settings-webdav',
+    component: WebDavSettingsView,
+    meta: { title: 'WebDAV' },
   },
 ]
 

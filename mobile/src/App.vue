@@ -52,7 +52,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="app-shell" :data-theme="preferences.theme">
+  <div class="app-shell" :data-theme="preferences.resolvedTheme">
     <div v-if="bootError" class="p-4 text-error" role="alert">
       {{ bootError }}
     </div>

@@ -96,6 +96,7 @@ export type MessageKey =
   | 'settings.webdavDownloadConfirm'
   | 'settings.light'
   | 'settings.dark'
+  | 'settings.system'
   | 'settings.english'
   | 'settings.chinese'
   | 'settings.currencyWarningTitle'
@@ -121,7 +122,7 @@ export type MessageKey =
   | 'error.missingKey'
 
 export type LanguageCode = 'en' | 'zh-CN'
-export type ThemeMode = 'light' | 'dark'
+export type ThemeMode = 'light' | 'dark' | 'system'
 export type CurrencyCode = MoneyCurrencyCode
 
 export const SUPPORTED_CURRENCIES: CurrencyCode[] = [...MONEY_CURRENCIES]
@@ -226,6 +227,7 @@ const en: Record<MessageKey, string> = {
     'Download will replace all local subscriptions and preferences with the remote backup.',
   'settings.light': 'Light',
   'settings.dark': 'Dark',
+  'settings.system': 'System',
   'settings.english': 'English',
   'settings.chinese': '简体中文',
   'settings.currencyWarningTitle': 'Change currency?',
@@ -347,6 +349,7 @@ const zh: Record<MessageKey, string> = {
   'settings.webdavDownloadConfirm': '下载将用远程备份完整替换本机订阅和偏好设置。',
   'settings.light': '浅色',
   'settings.dark': '深色',
+  'settings.system': '跟随系统',
   'settings.english': 'English',
   'settings.chinese': '简体中文',
   'settings.currencyWarningTitle': '更改货币？',
@@ -386,7 +389,7 @@ export function isLanguageCode(value: string): value is LanguageCode {
 }
 
 export function isThemeMode(value: string): value is ThemeMode {
-  return value === 'light' || value === 'dark'
+  return value === 'light' || value === 'dark' || value === 'system'
 }
 
 

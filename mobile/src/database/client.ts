@@ -419,7 +419,7 @@ export async function migrate(client: DatabaseClient): Promise<void> {
   ])
   await client.execute('INSERT OR IGNORE INTO preferences (key, value) VALUES (?, ?)', [
     'theme',
-    'light',
+    'system',
   ])
 }
 

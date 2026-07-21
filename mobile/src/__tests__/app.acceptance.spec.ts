@@ -180,7 +180,6 @@ describe('first monthly subscription', () => {
 
     await openDestination(wrapper, 'nav-overview', '/')
     expect(wrapper.text()).toContain('1')
-    expect(wrapper.text()).toMatch(/15\.99/)
     expect(wrapper.text()).toContain('Netflix')
 
     await reinitializeDatabaseKeepingDataForTests()
@@ -195,7 +194,6 @@ describe('first monthly subscription', () => {
 
     await openDestination(wrapper, 'nav-overview', '/')
     expect(wrapper.text()).toContain('Netflix')
-    expect(wrapper.text()).toMatch(/15\.99/)
   })
 
   it('rejects invalid amounts without creating a subscription', async () => {
@@ -330,9 +328,8 @@ describe('monthly and yearly renewals', () => {
     )
 
     await openDestination(wrapper, 'nav-overview', '/')
-    // 120.00 yearly => 10.00 normalized monthly
-    expect(wrapper.get('[data-testid="overview-monthly"]').text()).toMatch(/10\.00/)
     expect(wrapper.text()).toContain('Adobe')
+    expect(wrapper.get('[data-testid="overview-active-count"]').text()).toBe('1')
   })
 
   it('advances overdue next billing dates on load while preserving anchor', async () => {
@@ -403,7 +400,6 @@ describe('subscription lifecycle', () => {
 
     await openDestination(wrapper, 'nav-overview', '/')
     expect(wrapper.text()).not.toContain('Netflix Plus')
-    expect(wrapper.get('[data-testid="overview-monthly"]').text()).toMatch(/0\.00/)
 
     await router.push({ name: 'subscription-detail', params: { id } })
     await flushPromises()
@@ -415,7 +411,6 @@ describe('subscription lifecycle', () => {
 
     await openDestination(wrapper, 'nav-overview', '/')
     expect(wrapper.text()).toContain('Netflix Plus')
-    expect(wrapper.get('[data-testid="overview-monthly"]').text()).toMatch(/18\.99/)
 
     await router.push({ name: 'subscription-detail', params: { id } })
     await flushPromises()

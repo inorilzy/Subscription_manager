@@ -8,7 +8,6 @@ import { usePreferencesStore } from '../stores/preferences'
 const router = useRouter()
 const preferences = usePreferencesStore()
 const activeCount = ref(0)
-const monthlyByCurrency = ref<Array<{ currency: string; amountMinor: number }>>([])
 const upcoming = ref<Subscription[]>([])
 const loaded = ref(false)
 
@@ -31,7 +30,6 @@ function countdown(date: string) {
 async function reload() {
   const snapshot = await getOverviewSnapshot()
   activeCount.value = snapshot.activeCount
-  monthlyByCurrency.value = snapshot.monthlyByCurrency
   upcoming.value = snapshot.upcoming
   loaded.value = true
 }
@@ -76,10 +74,7 @@ async function seeAll() {
       <h2 class="font-headline text-xl font-bold text-on-surface">
         {{ preferences.t('overview.squad') }}
       </h2>
-      <div class="grid grid-cols-2 gap-3">
-        <div
-          class="rounded-xl border-2 border-surface-container-highest bg-surface-container-low p-4 text-center"
-        >
+      <div class="rounded-xl border-2 border-surface-container-highest bg-surface-container-low p-4 text-center">
           <p class="text-xs font-bold uppercase tracking-wide text-on-surface-variant">
             {{ preferences.t('overview.active') }}
           </p>
@@ -87,26 +82,9 @@ async function seeAll() {
             {{ activeCount }}
           </p>
         </div>
-        <div
-          class="rounded-xl border-2 border-surface-container-highest bg-surface-container-low p-4 text-center"
-        >
-          <p class="text-xs font-bold uppercase tracking-wide text-on-surface-variant">
-            {{ preferences.t('overview.monthly') }}
-          </p>
-          <div class="space-y-1" data-testid="overview-monthly">
-            <p
-              v-for="row in monthlyByCurrency"
-              :key="row.currency"
-              class="font-headline text-2xl font-extrabold text-error"
-            >
-              {{ preferences.formatAmount(row.amountMinor, row.currency as never) }}
-            </p>
-            <p v-if="monthlyByCurrency.length === 0" class="font-headline text-3xl font-extrabold text-error">
-              {{ preferences.formatAmount(0) }}
-            </p>
-          </div>
-        </div>
-      </div>
+        <p class="text-center text-sm text-on-surface-variant">
+          {{ preferences.language === 'zh-CN' ? '金额分析请到「统计」查看。' : 'See Stats for spending analysis.' }}
+        </p>
       <p v-if="activeCount === 0" class="text-center text-on-surface-variant">
         {{ preferences.t('overview.empty') }}
       </p>
