@@ -84,6 +84,18 @@ onMounted(async () => {
   loaded.value = true
 })
 
+async function returnToDetail() {
+  const detailLocation = { name: 'subscription-detail', params: { id } }
+  const detailPath = router.resolve(detailLocation).fullPath
+
+  if (router.options.history.state.back === detailPath) {
+    router.back()
+    return
+  }
+
+  await router.replace(detailLocation)
+}
+
 async function onSubmit() {
   if (submitting.value) return
   errorMessage.value = null
@@ -100,7 +112,7 @@ async function onSubmit() {
       billingInterval: billingInterval.value,
       currency: currency.value,
     })
-    await router.push({ name: 'subscription-detail', params: { id } })
+    await returnToDetail()
   } catch (error) {
     if (error instanceof ValidationError) {
       errorMessage.value = localizeValidation(error.message)
@@ -113,7 +125,7 @@ async function onSubmit() {
 }
 
 async function onCancel() {
-  await router.push({ name: 'subscription-detail', params: { id } })
+  await returnToDetail()
 }
 </script>
 

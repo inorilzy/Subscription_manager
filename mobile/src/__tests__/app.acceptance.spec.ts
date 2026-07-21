@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
@@ -389,10 +389,13 @@ describe('subscription lifecycle', () => {
     )
     await wrapper.get('[data-testid="subscription-name"]').setValue('Netflix Plus')
     await wrapper.get('[data-testid="subscription-amount"]').setValue('18.99')
+    const savePushSpy = vi.spyOn(router, 'push')
     await wrapper.get('[data-testid="subscription-form"]').trigger('submit')
     await flushPromises()
     await nextTick()
     await flushPromises()
+    expect(savePushSpy).not.toHaveBeenCalled()
+    savePushSpy.mockRestore()
 
     expect(wrapper.text()).toContain('Netflix Plus')
     expect(wrapper.text()).toMatch(/18\.99/)
@@ -433,6 +436,41 @@ describe('subscription lifecycle', () => {
     expect(router.currentRoute.value.name).toBe('subscriptions')
     expect(wrapper.text()).toContain('还没有订阅')
     expect(wrapper.text()).not.toContain('Netflix Plus')
+  })
+
+  it('backs from edit to detail and then to subscriptions without looping', async () => {
+    const wrapper = await mountApp()
+
+    await openCreateFrom(wrapper, 'subscriptions')
+    await fillAndSubmitSubscription(wrapper, {
+      name: 'Loop Test',
+      amount: '20.00',
+      nextBillingDate: '2030-07-22',
+      category: 'Other',
+    })
+
+    const id = wrapper.get('[data-testid="subscription-item"]').attributes('data-id')!
+    await router.push({ name: 'subscription-detail', params: { id } })
+    await flushPromises()
+    await nextTick()
+
+    await wrapper.get('[data-testid="subscription-edit"]').trigger('click')
+    await flushPromises()
+    await nextTick()
+    expect(router.currentRoute.value.name).toBe('subscription-edit')
+
+    const pushSpy = vi.spyOn(router, 'push')
+    await wrapper.get('[data-testid="subscription-edit-back"]').trigger('click')
+    await flushPromises()
+    await nextTick()
+    expect(router.currentRoute.value.name).toBe('subscription-detail')
+    expect(pushSpy).not.toHaveBeenCalled()
+    pushSpy.mockRestore()
+
+    await wrapper.get('[data-testid="subscription-detail-back"]').trigger('click')
+    await flushPromises()
+    await nextTick()
+    expect(router.currentRoute.value.name).toBe('subscriptions')
   })
 
   it('does not expose an editable form when the subscription is missing', async () => {
