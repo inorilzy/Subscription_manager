@@ -215,8 +215,8 @@ describe('first monthly subscription', () => {
     expect(wrapper.text()).toMatch(/day|天/)
 
     await openDestination(wrapper, 'nav-overview', '/')
-    expect(wrapper.text()).toContain('1')
-    expect(wrapper.text()).toContain('Netflix')
+    expect(wrapper.get('[data-testid="overview-active-count"]').text()).toBe('1')
+    expect(wrapper.find('[data-testid="overview-upcoming-item"]').exists()).toBe(false)
 
     await reinitializeDatabaseKeepingDataForTests()
 
@@ -229,7 +229,7 @@ describe('first monthly subscription', () => {
     expect(wrapper.text()).toMatch(/15\.99/)
 
     await openDestination(wrapper, 'nav-overview', '/')
-    expect(wrapper.text()).toContain('Netflix')
+    expect(wrapper.get('[data-testid="overview-active-count"]').text()).toBe('1')
   })
 
   it('persists an AI service icon and account identifier across views and restart', async () => {
@@ -260,10 +260,8 @@ describe('first monthly subscription', () => {
 
     const id = wrapper.get('[data-testid="subscription-item"]').attributes('data-id')!
     await openDestination(wrapper, 'nav-overview', '/')
-    expect(wrapper.get('[data-testid="subscription-account"]').text()).toBe('work@example.com')
-    expect(
-      wrapper.get('[data-testid="subscription-icon-rendered"]').attributes('data-icon-key'),
-    ).toBe('gemini')
+    expect(wrapper.get('[data-testid="overview-active-count"]').text()).toBe('1')
+    expect(wrapper.find('[data-testid="overview-upcoming-item"]').exists()).toBe(false)
 
     await router.push({ name: 'subscription-detail', params: { id } })
     await flushPromises()
@@ -597,8 +595,8 @@ describe('monthly and yearly renewals', () => {
     )
 
     await openDestination(wrapper, 'nav-overview', '/')
-    expect(wrapper.text()).toContain('Adobe')
     expect(wrapper.get('[data-testid="overview-active-count"]').text()).toBe('1')
+    expect(wrapper.find('[data-testid="overview-upcoming-item"]').exists()).toBe(false)
   })
 
   it('advances overdue next billing dates on load while preserving anchor', async () => {
@@ -655,12 +653,8 @@ describe('monthly and yearly renewals', () => {
     ).toBe('orange')
 
     await openDestination(wrapper, 'nav-overview', '/')
-    expect(
-      wrapper.get(`[data-testid="overview-progress-${urgentId}"]`).attributes('data-tone'),
-    ).toBe('red')
-    expect(
-      wrapper.get(`[data-testid="overview-progress-${halfwayId}"]`).attributes('data-tone'),
-    ).toBe('orange')
+    expect(wrapper.find('[data-testid="overview-upcoming-item"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="overview-active-count"]').text()).toBe('2')
 
     await router.push({ name: 'subscription-detail', params: { id: urgentId } })
     await flushPromises()
@@ -841,6 +835,7 @@ describe('subscription lifecycle', () => {
     expect(wrapper.get('[data-testid="subscription-status"]').text()).toMatch(/Cancelled|已取消/)
 
     await openDestination(wrapper, 'nav-overview', '/')
+    expect(wrapper.get('[data-testid="overview-active-count"]').text()).toBe('0')
     expect(wrapper.text()).not.toContain('Netflix Plus')
 
     await router.push({ name: 'subscription-detail', params: { id } })
@@ -852,7 +847,8 @@ describe('subscription lifecycle', () => {
     expect(wrapper.get('[data-testid="subscription-status"]').text()).toMatch(/Active|有效/)
 
     await openDestination(wrapper, 'nav-overview', '/')
-    expect(wrapper.text()).toContain('Netflix Plus')
+    expect(wrapper.get('[data-testid="overview-active-count"]').text()).toBe('1')
+    expect(wrapper.find('[data-testid="overview-upcoming-item"]').exists()).toBe(false)
 
     await router.push({ name: 'subscription-detail', params: { id } })
     await flushPromises()

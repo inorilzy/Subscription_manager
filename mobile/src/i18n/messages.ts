@@ -14,7 +14,6 @@ export type MessageKey =
   | 'overview.squad'
   | 'overview.active'
   | 'overview.empty'
-  | 'overview.upcoming'
   | 'subscriptions.title'
   | 'subscriptions.subtitle'
   | 'subscriptions.emptyTitle'
@@ -140,13 +139,12 @@ const en: Record<MessageKey, string> = {
   'nav.overview': 'Overview',
   'nav.subscriptions': 'Subscriptions',
   'nav.settings': 'Settings',
-  'app.starting': 'Starting SubScout…',
+  'app.starting': 'Starting Subscription Manager…',
   'app.bootError': 'Failed to start local database',
   'overview.greeting': 'Track upcoming charges',
   'overview.squad': 'Current subscriptions',
   'overview.active': 'Active',
   'overview.empty': 'No subscriptions yet. Add your first recurring expense to see it here.',
-  'overview.upcoming': 'Upcoming payments',
   'subscriptions.title': 'Subscriptions',
   'subscriptions.subtitle': 'All tracked recurring services',
   'subscriptions.emptyTitle': 'No subscriptions yet',
@@ -165,7 +163,8 @@ const en: Record<MessageKey, string> = {
   'create.newCategoryPlaceholder': 'e.g. Education',
   'create.newCategoryAdd': 'Add category',
   'create.icon': 'Service icon',
-  'create.iconHint': 'Choose one, or let SubScout match the service name automatically.',
+  'create.iconHint':
+    'Choose one, or let Subscription Manager match the service name automatically.',
   'create.iconAuto': 'Automatic',
   'create.iconMore': 'More icons',
   'create.planName': 'Plan Name',
@@ -227,7 +226,7 @@ const en: Record<MessageKey, string> = {
   'settings.webdavDownload': 'Download & restore',
   'settings.webdavSave': 'Save WebDAV settings',
   'settings.webdavHint':
-    'Connects directly to your own WebDAV server. Credentials stay on this device; there is no SubScout cloud backend.',
+    'Connects directly to your own WebDAV server. Credentials stay on this device; there is no Subscription Manager cloud backend.',
   'settings.webdavTestOk': 'Connection successful.',
   'settings.webdavUploadOk': 'Backup uploaded to WebDAV.',
   'settings.webdavDownloadConfirm':
@@ -270,13 +269,12 @@ const zh: Record<MessageKey, string> = {
   'nav.overview': '概览',
   'nav.subscriptions': '订阅',
   'nav.settings': '设置',
-  'app.starting': '正在启动 SubScout…',
+  'app.starting': '正在启动 Subscription Manager…',
   'app.bootError': '本地数据库启动失败',
   'overview.greeting': '关注即将到期的扣费',
   'overview.squad': '当前订阅',
   'overview.active': '有效',
   'overview.empty': '还没有订阅。添加第一笔周期支出后，会显示在这里。',
-  'overview.upcoming': '即将扣费',
   'subscriptions.title': '订阅',
   'subscriptions.subtitle': '全部已记录的周期服务',
   'subscriptions.emptyTitle': '还没有订阅',
@@ -296,7 +294,7 @@ const zh: Record<MessageKey, string> = {
   'create.newCategoryAdd': '添加分类',
   'create.planName': '套餐名称',
   'create.icon': '服务图标',
-  'create.iconHint': '可选择图标，也可让 SubScout 根据服务名称自动匹配。',
+  'create.iconHint': '可选择图标，也可让 Subscription Manager 根据服务名称自动匹配。',
   'create.iconAuto': '自动匹配',
   'create.iconMore': '更多图标',
   'create.paymentMethod': '支付方式标签',
@@ -353,7 +351,8 @@ const zh: Record<MessageKey, string> = {
   'settings.webdavUpload': '上传备份',
   'settings.webdavDownload': '下载并恢复',
   'settings.webdavSave': '保存 WebDAV 设置',
-  'settings.webdavHint': '直接连接你自己的 WebDAV 服务器。凭证只保存在本机，没有 SubScout 云后端。',
+  'settings.webdavHint':
+    '直接连接你自己的 WebDAV 服务器。凭证只保存在本机，没有 Subscription Manager 云后端。',
   'settings.webdavTestOk': '连接成功。',
   'settings.webdavUploadOk': '备份已上传到 WebDAV。',
   'settings.webdavDownloadConfirm': '下载将用远程备份完整替换本机订阅和偏好设置。',

@@ -3,55 +3,16 @@ import { ChartPie, Minus, Plus, TrendingDown, TrendingUp } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getOverviewSnapshot, listSubscriptions } from '../application/subscriptions'
-import BillingProgressBar from '../components/BillingProgressBar.vue'
 import PageTopBar from '../components/PageTopBar.vue'
-import SubscriptionIcon from '../components/SubscriptionIcon.vue'
-import { cycleProgress } from '../domain/billing'
-import { todayDateOnly } from '../domain/clock'
 import { computeMonthStats, type MonthStats } from '../domain/stats'
 import { totalInCnyMinor } from '../domain/exchange'
-import { relativeBillingLabel, type Subscription } from '../domain/subscription'
 import { usePreferencesStore } from '../stores/preferences'
 
 const router = useRouter()
 const preferences = usePreferencesStore()
 const activeCount = ref(0)
-const upcoming = ref<Subscription[]>([])
 const stats = ref<MonthStats | null>(null)
 const loaded = ref(false)
-
-function cycleLabel(interval: Subscription['billingInterval']) {
-  return interval === 'yearly' ? preferences.t('common.yearly') : preferences.t('common.monthly')
-}
-
-function countdown(date: string) {
-  return relativeBillingLabel(date, {
-    format: (days) => {
-      if (days === 0) return preferences.t('common.today')
-      if (days === 1) return preferences.t('common.inOneDay')
-      if (days > 1) return preferences.t('common.inDays', { n: days })
-      if (days === -1) return preferences.t('common.oneDayAgo')
-      return preferences.t('common.daysAgo', { n: Math.abs(days) })
-    },
-  })
-}
-
-function progressFor(item: Subscription) {
-  return cycleProgress(
-    item.nextBillingDate,
-    item.billingInterval,
-    item.billingAnchorDay,
-    todayDateOnly(),
-  )
-}
-
-function urgencyClass(item: Subscription): string {
-  const days = progressFor(item).daysLeft
-  if (days <= 3) return 'border-error/20 bg-error-container text-on-error-container'
-  if (days <= 14)
-    return 'border-tertiary-container/30 bg-tertiary-fixed text-on-tertiary-fixed-variant'
-  return 'border-secondary-fixed-dim/30 bg-secondary-fixed text-on-secondary-fixed-variant'
-}
 
 function deltaAmount(currency: string): number {
   if (!stats.value) return 0
@@ -118,7 +79,6 @@ async function reload() {
     listSubscriptions({ includeCancelled: true }),
   ])
   activeCount.value = snapshot.activeCount
-  upcoming.value = snapshot.upcoming
   stats.value = computeMonthStats(all)
   loaded.value = true
 }
@@ -128,19 +88,11 @@ onMounted(reload)
 async function openCreate() {
   await router.push({ name: 'subscription-create' })
 }
-
-async function openDetail(id: string) {
-  await router.push({ name: 'subscription-detail', params: { id } })
-}
-
-async function seeAll() {
-  await router.push({ name: 'subscriptions' })
-}
 </script>
 
 <template>
   <section class="page">
-    <PageTopBar title="SubScout" brand>
+    <PageTopBar title="Subscription Manager" brand>
       <template #action>
         <button
           type="button"
@@ -307,77 +259,6 @@ async function seeAll() {
               />
             </div>
           </div>
-        </div>
-      </section>
-
-      <section class="space-y-4">
-        <div class="flex items-end justify-between gap-3">
-          <h2 class="font-headline text-2xl font-bold text-on-surface">
-            {{ preferences.t('overview.upcoming') }}
-          </h2>
-          <button
-            type="button"
-            class="label-small rounded-lg px-2 py-1 text-primary"
-            data-testid="overview-see-all"
-            @click="seeAll"
-          >
-            {{ preferences.language === 'zh-CN' ? '查看全部' : 'See all' }}
-          </button>
-        </div>
-
-        <p
-          v-if="upcoming.length === 0"
-          class="tactile-card p-5 text-center text-on-surface-variant"
-          data-testid="overview-upcoming-empty"
-        >
-          {{ preferences.language === 'zh-CN' ? '暂无即将扣费项目。' : 'No upcoming payments.' }}
-        </p>
-
-        <div class="space-y-4">
-          <button
-            v-for="item in upcoming"
-            :key="item.id"
-            type="button"
-            class="tactile-card pressable w-full space-y-3 p-4 text-left"
-            data-testid="overview-upcoming-item"
-            @click="openDetail(item.id)"
-          >
-            <div class="flex items-center justify-between gap-3">
-              <div class="flex min-w-0 items-center gap-3">
-                <SubscriptionIcon
-                  :category="item.category"
-                  :name="item.name"
-                  :icon-key="item.iconKey"
-                />
-                <div class="min-w-0">
-                  <p class="truncate font-headline text-lg font-bold text-on-surface">
-                    {{ item.name }}
-                  </p>
-                  <p class="label-small text-on-surface-variant">
-                    {{ preferences.formatAmount(item.amountMinor, item.currency as never) }}
-                    / {{ cycleLabel(item.billingInterval) }}
-                  </p>
-                  <p
-                    v-if="item.accountLabel"
-                    class="truncate text-xs font-bold text-on-surface-variant"
-                    data-testid="subscription-account"
-                  >
-                    {{ item.accountLabel }}
-                  </p>
-                </div>
-              </div>
-              <span class="chip-pill shrink-0" :class="urgencyClass(item)">
-                {{ countdown(item.nextBillingDate) }}
-              </span>
-            </div>
-
-            <BillingProgressBar
-              :progress="progressFor(item)"
-              :label="`${item.name} billing cycle remaining`"
-              :test-id="`overview-progress-${item.id}`"
-            />
-            <p class="text-sm text-on-surface-variant">{{ item.nextBillingDate }}</p>
-          </button>
         </div>
       </section>
 

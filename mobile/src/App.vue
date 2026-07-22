@@ -77,7 +77,7 @@ onUnmounted(() => {
     </template>
 
     <div v-else class="p-4 text-on-surface-variant" data-testid="app-loading">
-      {{ preferences.loaded ? preferences.t('app.starting') : 'Starting SubScout…' }}
+      {{ preferences.loaded ? preferences.t('app.starting') : 'Starting Subscription Manager…' }}
     </div>
   </div>
 </template>

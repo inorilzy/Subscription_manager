@@ -267,7 +267,6 @@ export async function getSubscription(id: string): Promise<Subscription | null> 
 export async function getOverviewSnapshot(): Promise<{
   activeCount: number
   monthlyByCurrency: Array<{ currency: string; amountMinor: number }>
-  upcoming: Subscription[]
 }> {
   const subscriptions = await listSubscriptions()
   const totals = new Map<string, number>()
@@ -283,7 +282,6 @@ export async function getOverviewSnapshot(): Promise<{
   return {
     activeCount: subscriptions.length,
     monthlyByCurrency,
-    upcoming: subscriptions.slice(0, 5),
   }
 }
 
