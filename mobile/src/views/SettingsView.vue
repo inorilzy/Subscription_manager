@@ -8,6 +8,7 @@ import {
   Languages,
   Palette,
   Plus,
+  RefreshCw,
   ShieldCheck,
   Tag,
   Tags,
@@ -28,6 +29,7 @@ import {
 import { listSubscriptions } from '../application/subscriptions'
 import PageTopBar from '../components/PageTopBar.vue'
 import { DEFAULT_EXCHANGE_RATES, isValidRate } from '../domain/exchange'
+import { fetchRemoteRates } from '../application/exchange-remote'
 import {
   SUPPORTED_CURRENCIES,
   type CurrencyCode,
@@ -222,6 +224,44 @@ async function onRateChange(code: CurrencyCode, event: Event) {
   rateDrafts.value = { ...rateDrafts.value, [code]: String(parsed) }
   await preferences.setExchangeRate(code, parsed)
   rateMessage.value = preferences.language === 'zh-CN' ? '汇率已更新。' : 'Exchange rate updated.'
+}
+
+const ratesRefreshing = ref(false)
+
+const ratesUpdatedLabel = computed(() => {
+  const iso = preferences.exchangeRatesUpdatedAt
+  if (!iso) {
+    return preferences.language === 'zh-CN' ? '尚未从网络更新' : 'Not yet updated from network'
+  }
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) {
+    return preferences.language === 'zh-CN' ? '尚未从网络更新' : 'Not yet updated from network'
+  }
+  const formatted = new Intl.DateTimeFormat(preferences.locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(date)
+  return preferences.language === 'zh-CN' ? `上次更新：${formatted}` : `Last updated: ${formatted}`
+})
+
+async function onRefreshRates() {
+  if (ratesRefreshing.value) return
+  ratesRefreshing.value = true
+  rateMessage.value = null
+  try {
+    const { rates, fetchedAt } = await fetchRemoteRates()
+    await preferences.applyRemoteRates(rates, fetchedAt)
+    syncRateDrafts()
+    rateMessage.value =
+      preferences.language === 'zh-CN' ? '已从网络更新汇率。' : 'Rates updated from network.'
+  } catch {
+    rateMessage.value =
+      preferences.language === 'zh-CN'
+        ? '更新失败，继续使用当前汇率。'
+        : 'Update failed; keeping current rates.'
+  } finally {
+    ratesRefreshing.value = false
+  }
 }
 
 async function openWebDav() {
@@ -471,6 +511,34 @@ function cancelImport() {
                 />
                 <span class="shrink-0 text-sm font-bold text-on-surface-variant">CNY</span>
               </label>
+
+              <button
+                type="button"
+                class="tactile-btn-secondary mt-4 w-full px-4 py-2"
+                data-testid="settings-rate-refresh"
+                :disabled="ratesRefreshing"
+                @click="onRefreshRates"
+              >
+                <RefreshCw
+                  :size="18"
+                  :stroke-width="2.6"
+                  aria-hidden="true"
+                  :class="ratesRefreshing ? 'animate-spin' : undefined"
+                />
+                {{
+                  ratesRefreshing
+                    ? preferences.language === 'zh-CN'
+                      ? '更新中…'
+                      : 'Updating…'
+                    : preferences.language === 'zh-CN'
+                      ? '从网络更新汇率'
+                      : 'Update rates from network'
+                }}
+              </button>
+
+              <p class="mt-2 text-xs text-on-surface-variant" data-testid="settings-rate-updated">
+                {{ ratesUpdatedLabel }}
+              </p>
 
               <p
                 v-if="rateMessage"

@@ -27,6 +27,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
   const theme = ref<ThemeMode>('system')
   const currency = ref<CurrencyCode>('CNY')
   const exchangeRates = ref<ExchangeRates>({})
+  const exchangeRatesUpdatedAt = ref<string | null>(null)
   const loaded = ref(false)
   const resolvedTheme = ref<'light' | 'dark'>('light')
 
@@ -85,17 +86,19 @@ export const usePreferencesStore = defineStore('preferences', () => {
   }
 
   async function load(): Promise<void> {
-    const [langRaw, themeRaw, currencyRaw, ratesRaw] = await Promise.all([
+    const [langRaw, themeRaw, currencyRaw, ratesRaw, ratesAtRaw] = await Promise.all([
       getPreference('language', 'zh-CN'),
       getPreference('theme', 'system'),
       getPreference('currency', 'CNY'),
       getPreference('exchange_rates', '{}'),
+      getPreference('exchange_rates_updated_at', ''),
     ])
     language.value = isLanguageCode(langRaw) ? langRaw : 'zh-CN'
     paintLanguage(language.value)
     theme.value = isThemeMode(themeRaw) ? themeRaw : 'system'
     currency.value = isCurrencyCode(currencyRaw) ? currencyRaw : 'CNY'
     exchangeRates.value = parseStoredRates(ratesRaw)
+    exchangeRatesUpdatedAt.value = ratesAtRaw || null
     applyTheme(theme.value)
     bindSystemThemeListener()
     loaded.value = true
@@ -124,12 +127,21 @@ export const usePreferencesStore = defineStore('preferences', () => {
     await setPreference('exchange_rates', JSON.stringify(exchangeRates.value))
   }
 
+  /** Merge fetched rates over the manual table and record when they arrived. */
+  async function applyRemoteRates(rates: ExchangeRates, fetchedAt: string): Promise<void> {
+    exchangeRates.value = { ...exchangeRates.value, ...rates }
+    exchangeRatesUpdatedAt.value = fetchedAt
+    await setPreference('exchange_rates', JSON.stringify(exchangeRates.value))
+    await setPreference('exchange_rates_updated_at', fetchedAt)
+  }
+
   return {
     language,
     theme,
     resolvedTheme,
     currency,
     exchangeRates,
+    exchangeRatesUpdatedAt,
     resolvedRates,
     loaded,
     locale,
@@ -140,6 +152,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
     setTheme,
     setCurrency,
     setExchangeRate,
+    applyRemoteRates,
     applyTheme,
   }
 })

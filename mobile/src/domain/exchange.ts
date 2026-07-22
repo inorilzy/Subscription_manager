@@ -86,3 +86,28 @@ export function parseStoredRates(raw: string): ExchangeRates {
     return {}
   }
 }
+
+/**
+ * Convert an open.er-api.com CNY-based response into our CNY-anchored table.
+ * The API reports `rates.X` as "how many X per 1 CNY", so a major unit of X is
+ * worth `1 / rates.X` CNY. Only supported, positive, finite rates are kept;
+ * anything else is dropped so a partial/garbled payload never poisons the table.
+ */
+export function ratesFromCnyBaseResponse(payload: unknown): ExchangeRates {
+  if (!payload || typeof payload !== 'object') return {}
+  const doc = payload as Record<string, unknown>
+  if (doc.result !== 'success' || doc.base_code !== 'CNY') return {}
+  const rates = doc.rates
+  if (!rates || typeof rates !== 'object') return {}
+
+  const source = rates as Record<string, unknown>
+  const result: ExchangeRates = {}
+  for (const code of SUPPORTED_CURRENCIES) {
+    if (code === 'CNY') continue
+    const perCny = source[code]
+    if (typeof perCny !== 'number' || !Number.isFinite(perCny) || perCny <= 0) continue
+    const cnyPerUnit = 1 / perCny
+    if (isValidRate(cnyPerUnit)) result[code] = cnyPerUnit
+  }
+  return result
+}
