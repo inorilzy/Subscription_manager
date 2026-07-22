@@ -10,6 +10,7 @@ import SubscriptionCreateView from '../views/SubscriptionCreateView.vue'
 import SubscriptionDetailView from '../views/SubscriptionDetailView.vue'
 import SubscriptionEditView from '../views/SubscriptionEditView.vue'
 import SettingsView from '../views/SettingsView.vue'
+import CategoriesSettingsView from '../views/CategoriesSettingsView.vue'
 import ExchangeRatesSettingsView from '../views/ExchangeRatesSettingsView.vue'
 import WebDavSettingsView from '../views/WebDavSettingsView.vue'
 const routes: RouteRecordRaw[] = [
@@ -48,6 +49,12 @@ const routes: RouteRecordRaw[] = [
     name: 'settings',
     component: SettingsView,
     meta: { title: 'Settings' },
+  },
+  {
+    path: '/settings/categories',
+    name: 'settings-categories',
+    component: CategoriesSettingsView,
+    meta: { title: 'Categories' },
   },
   {
     path: '/settings/exchange-rates',

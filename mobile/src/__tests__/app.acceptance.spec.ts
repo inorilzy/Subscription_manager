@@ -454,6 +454,11 @@ describe('category management', () => {
   it('adds a category in Settings and moves its subscriptions to Default when deleted', async () => {
     const wrapper = await mountApp()
     await openDestination(wrapper, 'nav-settings', '/settings')
+    expect(wrapper.find('[data-testid="settings-category-name"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="open-categories-settings"]').trigger('click')
+    await flushPromises()
+    await nextTick()
+    expect(router.currentRoute.value.name).toBe('settings-categories')
 
     const defaultItem = wrapper
       .findAll('[data-testid="settings-category-item"]')
@@ -480,6 +485,9 @@ describe('category management', () => {
     })
 
     await openDestination(wrapper, 'nav-settings', '/settings')
+    await wrapper.get('[data-testid="open-categories-settings"]').trigger('click')
+    await flushPromises()
+    await nextTick()
     const deleteButton = wrapper
       .findAll('[data-testid="settings-category-delete"]')
       .find((button) => button.attributes('data-category') === 'Education')
