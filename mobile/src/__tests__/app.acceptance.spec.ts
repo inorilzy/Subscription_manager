@@ -693,6 +693,50 @@ describe('monthly and yearly renewals', () => {
     await flushPromises()
     expect(gbpInput!.element).toHaveProperty('value', '9.5')
   })
+
+  it('sorts subscriptions by billing date and converted CNY price', async () => {
+    setNow('2030-06-01T12:00:00')
+    const wrapper = await mountApp()
+
+    await openCreateFrom(wrapper, 'subscriptions')
+    await fillAndSubmitSubscription(wrapper, {
+      name: 'Early USD',
+      amount: '10.00',
+      currency: 'USD',
+      nextBillingDate: '2030-06-10',
+    })
+    await openCreateFrom(wrapper, 'subscriptions')
+    await fillAndSubmitSubscription(wrapper, {
+      name: 'Middle JPY',
+      amount: '1000',
+      currency: 'JPY',
+      nextBillingDate: '2030-06-20',
+    })
+    await openCreateFrom(wrapper, 'subscriptions')
+    await fillAndSubmitSubscription(wrapper, {
+      name: 'Late CNY',
+      amount: '60.00',
+      currency: 'CNY',
+      nextBillingDate: '2030-06-30',
+    })
+
+    const visibleNames = () =>
+      wrapper
+        .findAll('[data-testid="subscription-item"]')
+        .map((item) => item.attributes('data-name'))
+
+    expect(visibleNames()).toEqual(['Early USD', 'Middle JPY', 'Late CNY'])
+
+    await wrapper.get('[data-testid="subscription-sort"]').setValue('next-desc')
+    expect(visibleNames()).toEqual(['Late CNY', 'Middle JPY', 'Early USD'])
+
+    // Converted defaults: USD 10 = CNY 72, CNY 60 = CNY 60, JPY 1000 = CNY 48.
+    await wrapper.get('[data-testid="subscription-sort"]').setValue('price-desc')
+    expect(visibleNames()).toEqual(['Early USD', 'Late CNY', 'Middle JPY'])
+
+    await wrapper.get('[data-testid="subscription-sort"]').setValue('price-asc')
+    expect(visibleNames()).toEqual(['Middle JPY', 'Late CNY', 'Early USD'])
+  })
 })
 
 describe('subscription lifecycle', () => {

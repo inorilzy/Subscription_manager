@@ -1,3 +1,4 @@
+import { convertToCnyMinor, type ExchangeRates } from './exchange'
 import type {
   BillingInterval,
   Subscription,
@@ -18,6 +19,16 @@ export const DEFAULT_FILTERS: SubscriptionFilters = {
   category: 'all',
   billingInterval: 'all',
 }
+
+export type SubscriptionSort =
+  | 'next-asc'
+  | 'next-desc'
+  | 'price-desc'
+  | 'price-asc'
+  | 'name-asc'
+  | 'name-desc'
+
+export const DEFAULT_SORT: SubscriptionSort = 'next-asc'
 
 export function filterSubscriptions(
   items: Subscription[],
@@ -48,4 +59,33 @@ export function hasActiveFilters(filters: SubscriptionFilters): boolean {
     filters.category !== 'all' ||
     filters.billingInterval !== 'all'
   )
+}
+
+/** Sort a filtered copy without changing repository order or the caller's array. */
+export function sortSubscriptions(
+  items: Subscription[],
+  sort: SubscriptionSort,
+  rates: ExchangeRates,
+): Subscription[] {
+  return [...items].sort((a, b) => {
+    if (sort === 'next-asc' || sort === 'next-desc') {
+      const dateOrder = a.nextBillingDate.localeCompare(b.nextBillingDate)
+      const directed = sort === 'next-asc' ? dateOrder : -dateOrder
+      return directed || a.name.localeCompare(b.name)
+    }
+
+    if (sort === 'name-asc' || sort === 'name-desc') {
+      const nameOrder = a.name.localeCompare(b.name)
+      return sort === 'name-asc' ? nameOrder : -nameOrder
+    }
+
+    const aPrice = convertToCnyMinor(a.amountMinor, a.currency, rates)
+    const bPrice = convertToCnyMinor(b.amountMinor, b.currency, rates)
+    if (aPrice === null && bPrice === null) return a.name.localeCompare(b.name)
+    if (aPrice === null) return 1
+    if (bPrice === null) return -1
+    const priceOrder = aPrice - bPrice
+    const directed = sort === 'price-asc' ? priceOrder : -priceOrder
+    return directed || a.name.localeCompare(b.name)
+  })
 }

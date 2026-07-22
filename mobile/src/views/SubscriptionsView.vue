@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChevronRight, Plus, Search, SlidersHorizontal } from '@lucide/vue'
+import { ArrowUpDown, ChevronRight, Plus, Search, SlidersHorizontal } from '@lucide/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { listCategories } from '../application/categories'
@@ -11,9 +11,12 @@ import { cycleProgress, dailyAmountMinor } from '../domain/billing'
 import { todayDateOnly } from '../domain/clock'
 import {
   DEFAULT_FILTERS,
+  DEFAULT_SORT,
   filterSubscriptions,
   hasActiveFilters,
+  sortSubscriptions,
   type SubscriptionFilters,
+  type SubscriptionSort,
 } from '../domain/filters'
 import { relativeBillingLabel, type Subscription } from '../domain/subscription'
 import { usePreferencesStore } from '../stores/preferences'
@@ -23,10 +26,17 @@ const preferences = usePreferencesStore()
 const allItems = ref<Subscription[]>([])
 const categories = ref<string[]>([])
 const filters = ref<SubscriptionFilters>({ ...DEFAULT_FILTERS })
+const sort = ref<SubscriptionSort>(DEFAULT_SORT)
 const loaded = ref(false)
 const showFilters = ref(false)
 
-const visible = computed(() => filterSubscriptions(allItems.value, filters.value))
+const visible = computed(() =>
+  sortSubscriptions(
+    filterSubscriptions(allItems.value, filters.value),
+    sort.value,
+    preferences.resolvedRates,
+  ),
+)
 const filtering = computed(() => hasActiveFilters(filters.value))
 
 function cycleLabel(interval: Subscription['billingInterval']) {
@@ -129,6 +139,40 @@ async function openDetail(id: string) {
             />
           </label>
 
+          <label class="relative min-w-[10.5rem] flex-1">
+            <ArrowUpDown
+              :size="20"
+              :stroke-width="2.4"
+              class="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-on-surface-variant"
+              aria-hidden="true"
+            />
+            <select
+              v-model="sort"
+              data-testid="subscription-sort"
+              class="field-recessed rounded-full pr-9 pl-11 text-sm font-bold"
+              :aria-label="preferences.language === 'zh-CN' ? '订阅排序方式' : 'Sort subscriptions'"
+            >
+              <option value="next-asc">
+                {{ preferences.language === 'zh-CN' ? '下次扣费：最近' : 'Next billing: soonest' }}
+              </option>
+              <option value="next-desc">
+                {{ preferences.language === 'zh-CN' ? '下次扣费：最晚' : 'Next billing: latest' }}
+              </option>
+              <option value="price-desc">
+                {{ preferences.language === 'zh-CN' ? '价格：从高到低' : 'Price: high to low' }}
+              </option>
+              <option value="price-asc">
+                {{ preferences.language === 'zh-CN' ? '价格：从低到高' : 'Price: low to high' }}
+              </option>
+              <option value="name-asc">
+                {{ preferences.language === 'zh-CN' ? '名称：A–Z' : 'Name: A–Z' }}
+              </option>
+              <option value="name-desc">
+                {{ preferences.language === 'zh-CN' ? '名称：Z–A' : 'Name: Z–A' }}
+              </option>
+            </select>
+          </label>
+
           <button
             type="button"
             class="tactile-btn-secondary pill-button"
@@ -137,10 +181,6 @@ async function openDetail(id: string) {
           >
             <SlidersHorizontal :size="21" aria-hidden="true" />
             {{ preferences.language === 'zh-CN' ? '筛选' : 'Filter' }}
-          </button>
-          <button type="button" class="tactile-btn pill-button" @click="openCreate">
-            <Plus :size="22" :stroke-width="2.8" aria-hidden="true" />
-            {{ preferences.t('subscriptions.add') }}
           </button>
         </div>
 
@@ -249,6 +289,7 @@ async function openDetail(id: string) {
             :class="{ 'opacity-70': item.status === 'cancelled' }"
             data-testid="subscription-item"
             :data-id="item.id"
+            :data-name="item.name"
             :data-interval="item.billingInterval"
             :data-status="item.status"
             @click="openDetail(item.id)"
