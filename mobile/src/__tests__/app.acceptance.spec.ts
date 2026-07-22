@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick } from 'vue'
@@ -40,11 +41,12 @@ async function openDestination(_wrapper: VueWrapper, testId: string, path: strin
 async function openCreateFrom(wrapper: VueWrapper, source: 'overview' | 'subscriptions') {
   if (source === 'subscriptions') {
     await openDestination(wrapper, 'nav-subscriptions', '/subscriptions')
+    expect(wrapper.find('[data-testid="add-subscription"]').exists()).toBe(true)
   } else {
     await openDestination(wrapper, 'nav-overview', '/')
+    expect(wrapper.find('[data-testid="add-subscription"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="add-subscription-bottom"]').exists()).toBe(false)
   }
-
-  expect(wrapper.find('[data-testid="add-subscription"]').exists()).toBe(true)
   await router.push({ name: 'subscription-create' })
   await flushPromises()
   await nextTick()
@@ -392,6 +394,35 @@ describe('theme language currency', () => {
 
   it('has complete en and zh-CN catalogs', () => {
     expect(() => assertCatalogComplete()).not.toThrow()
+  })
+
+  it('mounts default scout theme tokens and falls back from unknown presets', async () => {
+    let wrapper = await mountApp()
+    expect(document.documentElement.dataset.theme).toMatch(/^(light|dark)$/)
+    expect(document.documentElement.dataset.themePreset).toBe('scout')
+
+    const source = readFileSync('src/assets/main.css', 'utf8')
+    for (const token of [
+      '--color-chart-1',
+      '--color-chart-2',
+      '--color-chart-3',
+      '--color-chart-4',
+      '--color-chart-5',
+      '--color-chart-other',
+    ]) {
+      expect(source).toContain(token)
+    }
+
+    const { setPreference } = await import('../database/client')
+    await setPreference('theme_preset', 'not-a-real-theme')
+    await setPreference('theme', 'dark')
+
+    wrapper.unmount()
+    document.body.innerHTML = ''
+    wrapper = await mountApp()
+
+    expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(document.documentElement.dataset.themePreset).toBe('scout')
   })
 
   it('switches language and theme, warns on currency change with existing data, and persists', async () => {

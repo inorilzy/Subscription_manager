@@ -14,6 +14,7 @@ import {
 } from '../i18n/messages'
 import { formatMinorAmount as formatMoney } from '../domain/money'
 import { parseStoredRates, resolveRates, type ExchangeRates } from '../domain/exchange'
+import { normalizeThemePreset, type ThemePreset } from '../theme/presets'
 
 function systemPrefersDark(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -25,6 +26,7 @@ function systemPrefersDark(): boolean {
 export const usePreferencesStore = defineStore('preferences', () => {
   const language = ref<LanguageCode>('zh-CN')
   const theme = ref<ThemeMode>('system')
+  const themePreset = ref<ThemePreset>('scout')
   const currency = ref<CurrencyCode>('CNY')
   const exchangeRates = ref<ExchangeRates>({})
   const exchangeRatesUpdatedAt = ref<string | null>(null)
@@ -61,6 +63,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
     resolvedTheme.value = mode
     if (typeof document !== 'undefined') {
       document.documentElement.dataset.theme = mode
+      document.documentElement.dataset.themePreset = themePreset.value
       document.documentElement.style.colorScheme = mode
     }
   }
@@ -86,16 +89,19 @@ export const usePreferencesStore = defineStore('preferences', () => {
   }
 
   async function load(): Promise<void> {
-    const [langRaw, themeRaw, currencyRaw, ratesRaw, ratesAtRaw] = await Promise.all([
-      getPreference('language', 'zh-CN'),
-      getPreference('theme', 'system'),
-      getPreference('currency', 'CNY'),
-      getPreference('exchange_rates', '{}'),
-      getPreference('exchange_rates_updated_at', ''),
-    ])
+    const [langRaw, themeRaw, themePresetRaw, currencyRaw, ratesRaw, ratesAtRaw] =
+      await Promise.all([
+        getPreference('language', 'zh-CN'),
+        getPreference('theme', 'system'),
+        getPreference('theme_preset', 'scout'),
+        getPreference('currency', 'CNY'),
+        getPreference('exchange_rates', '{}'),
+        getPreference('exchange_rates_updated_at', ''),
+      ])
     language.value = isLanguageCode(langRaw) ? langRaw : 'zh-CN'
     paintLanguage(language.value)
     theme.value = isThemeMode(themeRaw) ? themeRaw : 'system'
+    themePreset.value = normalizeThemePreset(themePresetRaw)
     currency.value = isCurrencyCode(currencyRaw) ? currencyRaw : 'CNY'
     exchangeRates.value = parseStoredRates(ratesRaw)
     exchangeRatesUpdatedAt.value = ratesAtRaw || null
@@ -138,6 +144,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
   return {
     language,
     theme,
+    themePreset,
     resolvedTheme,
     currency,
     exchangeRates,
