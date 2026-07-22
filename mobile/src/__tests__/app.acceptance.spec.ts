@@ -53,6 +53,7 @@ async function fillAndSubmitSubscription(
     name: string
     amount: string
     nextBillingDate: string
+    currency?: string
     category?: string
     planName?: string
     paymentMethodLabel?: string
@@ -66,6 +67,10 @@ async function fillAndSubmitSubscription(
   await wrapper
     .get('[data-testid="subscription-next-billing-date"]')
     .setValue(values.nextBillingDate)
+
+  if (values.currency) {
+    await wrapper.get('[data-testid="subscription-currency"]').setValue(values.currency)
+  }
 
   if (values.billingInterval) {
     await wrapper
@@ -607,6 +612,48 @@ describe('monthly and yearly renewals', () => {
         wrapper.get('[data-testid="detail-progress-bar"]').attributes('data-remaining-percent'),
       ),
     ).toBeLessThan(50)
+  })
+
+  it('lists each currency separately and folds a manual-rate CNY total on home', async () => {
+    setNow('2030-06-08T12:00:00')
+    const wrapper = await mountApp()
+
+    await openCreateFrom(wrapper, 'overview')
+    await fillAndSubmitSubscription(wrapper, {
+      name: 'Local CNY',
+      amount: '40.00',
+      currency: 'CNY',
+      nextBillingDate: '2030-06-15',
+    })
+    await openCreateFrom(wrapper, 'subscriptions')
+    await fillAndSubmitSubscription(wrapper, {
+      name: 'Netflix USD',
+      amount: '15.99',
+      currency: 'USD',
+      nextBillingDate: '2030-06-20',
+    })
+    await openCreateFrom(wrapper, 'subscriptions')
+    await fillAndSubmitSubscription(wrapper, {
+      name: 'Manga JPY',
+      amount: '980',
+      currency: 'JPY',
+      nextBillingDate: '2030-06-25',
+    })
+
+    await openDestination(wrapper, 'nav-overview', '/')
+
+    const rows = wrapper.findAll('[data-testid="overview-currency-row"]')
+    expect(rows.map((row) => row.attributes('data-currency'))).toEqual(['CNY', 'JPY', 'USD'])
+
+    // Zero-decimal JPY renders without fraction digits.
+    const jpyRow = rows.find((row) => row.attributes('data-currency') === 'JPY')!
+    expect(jpyRow.text()).toMatch(/JP¥\s*980|¥\s*980/)
+    expect(jpyRow.text()).not.toContain('980.00')
+
+    // Combined CNY total uses default manual rates: 40 + 15.99*7.2 + 980*0.048 = 202.17.
+    const total = wrapper.get('[data-testid="overview-cny-total"]')
+    expect(total.text()).toMatch(/202\.17/)
+    expect(wrapper.find('[data-testid="overview-cny-missing"]').exists()).toBe(false)
   })
 })
 

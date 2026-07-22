@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ChartPie, Minus, Plus, TrendingDown, TrendingUp } from '@lucide/vue'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getOverviewSnapshot, listSubscriptions } from '../application/subscriptions'
 import BillingProgressBar from '../components/BillingProgressBar.vue'
@@ -9,6 +9,7 @@ import SubscriptionIcon from '../components/SubscriptionIcon.vue'
 import { cycleProgress } from '../domain/billing'
 import { todayDateOnly } from '../domain/clock'
 import { computeMonthStats, type MonthStats } from '../domain/stats'
+import { totalInCnyMinor } from '../domain/exchange'
 import { relativeBillingLabel, type Subscription } from '../domain/subscription'
 import { usePreferencesStore } from '../stores/preferences'
 
@@ -100,6 +101,17 @@ function maxCategory(currency: string): number {
   return group?.categories.reduce((max, item) => Math.max(max, item.amountMinor), 0) ?? 0
 }
 
+const cnyTotal = computed(() =>
+  totalInCnyMinor(stats.value?.totalsByCurrency ?? [], preferences.resolvedRates),
+)
+
+/** Show the folded CNY total only when it adds information beyond a single CNY row. */
+const showCnyTotal = computed(() => {
+  const totals = stats.value?.totalsByCurrency ?? []
+  const hasNonCny = totals.some((row) => row.currency !== 'CNY')
+  return totals.length > 1 && hasNonCny
+})
+
 async function reload() {
   const [snapshot, all] = await Promise.all([
     getOverviewSnapshot(),
@@ -155,64 +167,99 @@ async function seeAll() {
           </p>
         </div>
 
-        <div class="relative z-10 grid grid-cols-2 gap-3">
-          <div
-            class="rounded-xl border-2 border-surface-variant bg-surface-container-lowest p-4 text-center"
-            style="border-bottom-width: 4px"
-          >
-            <p class="label-small tracking-[0.12em] text-on-surface-variant uppercase">
-              {{ preferences.t('overview.active') }}
-            </p>
-            <p class="display-number text-primary" data-testid="overview-active-count">
-              {{ activeCount }}
-            </p>
-          </div>
-          <div
-            class="rounded-xl border-2 border-surface-variant bg-surface-container-lowest p-4 text-center"
-            style="border-bottom-width: 4px"
-          >
-            <p class="label-small tracking-[0.12em] text-on-surface-variant uppercase">
-              {{ preferences.t('stats.scheduled') }}
-            </p>
-            <div data-testid="overview-month-total" class="mt-1 space-y-1">
-              <p
-                v-for="row in stats?.totalsByCurrency ?? []"
-                :key="row.currency"
-                class="min-w-0 max-w-full truncate font-headline text-2xl leading-tight font-extrabold text-error"
-              >
-                {{ preferences.formatAmount(row.amountMinor, row.currency as never) }}
-              </p>
-              <p
-                v-if="!stats || stats.totalsByCurrency.length === 0"
-                class="font-headline text-2xl leading-tight font-extrabold text-error"
-              >
-                {{ preferences.formatAmount(0) }}
-              </p>
-            </div>
-          </div>
+        <div
+          class="relative z-10 rounded-xl border-2 border-surface-variant bg-surface-container-lowest p-4 text-center"
+          style="border-bottom-width: 4px"
+        >
+          <p class="label-small tracking-[0.12em] text-on-surface-variant uppercase">
+            {{ preferences.t('overview.active') }}
+          </p>
+          <p class="display-number text-primary" data-testid="overview-active-count">
+            {{ activeCount }}
+          </p>
         </div>
 
         <div
-          v-if="stats && stats.totalsByCurrency.length > 0"
-          class="relative z-10 flex flex-wrap justify-center gap-2"
+          class="relative z-10 rounded-xl border-2 border-surface-variant bg-surface-container-lowest p-4"
+          style="border-bottom-width: 4px"
         >
-          <p
-            v-for="row in stats.totalsByCurrency"
-            :key="`delta-${row.currency}`"
-            class="chip-pill w-max border-0"
-            :class="deltaChipClass(row.currency)"
-            data-testid="overview-delta"
+          <p class="label-small tracking-[0.12em] text-on-surface-variant uppercase">
+            {{ preferences.t('stats.scheduled') }}
+          </p>
+
+          <ul
+            v-if="stats && stats.totalsByCurrency.length > 0"
+            data-testid="overview-month-total"
+            class="mt-3 space-y-2"
           >
-            <component :is="deltaIcon(row.currency)" :size="18" aria-hidden="true" />
-            {{ deltaFor(row.currency) }}
+            <li
+              v-for="row in stats.totalsByCurrency"
+              :key="row.currency"
+              class="flex items-center justify-between gap-3 border-b border-surface-container-highest pb-2 last:border-0 last:pb-0"
+              data-testid="overview-currency-row"
+              :data-currency="row.currency"
+            >
+              <span class="label-small shrink-0 text-on-surface-variant">{{ row.currency }}</span>
+              <span
+                class="min-w-0 flex-1 truncate text-right font-headline text-xl font-extrabold text-error"
+              >
+                {{ preferences.formatAmount(row.amountMinor, row.currency as never) }}
+              </span>
+              <span
+                class="chip-pill shrink-0 border-0 text-xs"
+                :class="deltaChipClass(row.currency)"
+                data-testid="overview-delta"
+              >
+                <component :is="deltaIcon(row.currency)" :size="15" aria-hidden="true" />
+                {{ deltaFor(row.currency) }}
+              </span>
+            </li>
+          </ul>
+
+          <p
+            v-else
+            data-testid="overview-month-total"
+            class="mt-3 font-headline text-2xl leading-tight font-extrabold text-error"
+          >
+            {{ preferences.formatAmount(0) }}
+          </p>
+
+          <div
+            v-if="showCnyTotal"
+            class="mt-3 flex items-center justify-between gap-3 rounded-lg bg-surface-container p-3"
+            data-testid="overview-cny-total"
+          >
+            <span class="label-small text-on-surface-variant">
+              {{ preferences.language === 'zh-CN' ? '≈ 折合合计' : '≈ Combined' }}
+            </span>
+            <span
+              class="min-w-0 flex-1 truncate text-right font-headline text-lg font-extrabold text-on-surface"
+            >
+              {{ preferences.formatAmount(cnyTotal.cnyMinor, 'CNY') }}
+            </span>
+          </div>
+          <p
+            v-if="showCnyTotal && cnyTotal.missing.length > 0"
+            class="mt-2 text-xs text-on-surface-variant"
+            data-testid="overview-cny-missing"
+          >
+            {{
+              preferences.language === 'zh-CN'
+                ? `缺少汇率：${cnyTotal.missing.join('、')}，未计入合计。`
+                : `Missing rates: ${cnyTotal.missing.join(', ')} — excluded from the total.`
+            }}
           </p>
         </div>
 
         <p class="relative z-10 text-center text-xs text-on-surface-variant">
           {{
-            preferences.language === 'zh-CN'
-              ? '不同币种分别统计，不做汇率换算。'
-              : 'Amounts are grouped by currency with no FX conversion.'
+            showCnyTotal
+              ? preferences.language === 'zh-CN'
+                ? '各币种分别统计，折合合计按设置中的手动汇率估算。'
+                : 'Currencies are tracked separately; the combined total is estimated with your manual rates.'
+              : preferences.language === 'zh-CN'
+                ? '不同币种分别统计，不做汇率换算。'
+                : 'Amounts are grouped by currency with no FX conversion.'
           }}
         </p>
         <p

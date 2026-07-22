@@ -27,6 +27,7 @@ import {
 } from '../application/reminders'
 import { listSubscriptions } from '../application/subscriptions'
 import PageTopBar from '../components/PageTopBar.vue'
+import { DEFAULT_EXCHANGE_RATES, isValidRate } from '../domain/exchange'
 import {
   SUPPORTED_CURRENCIES,
   type CurrencyCode,
@@ -56,6 +57,13 @@ const pendingCategoryDelete = ref<string | null>(null)
 const categoryNameInput = ref<HTMLInputElement | null>(null)
 let categoryDeleteCancelButton: HTMLButtonElement | null = null
 let categoryDeleteTrigger: HTMLElement | null = null
+
+const usedCurrencies = ref<CurrencyCode[]>([])
+const rateDrafts = ref<Record<string, string>>({})
+const rateMessage = ref<string | null>(null)
+
+/** Non-CNY currencies actually used by subscriptions need an editable CNY rate. */
+const convertibleCurrencies = computed(() => usedCurrencies.value.filter((code) => code !== 'CNY'))
 
 const customCategories = computed(() =>
   categories.value.filter((category) => category.toLocaleLowerCase() !== 'default'),
@@ -173,9 +181,48 @@ async function reloadReminders() {
   permission.value = await getNotificationAdapter().getPermission()
 }
 
+function syncRateDrafts() {
+  const drafts: Record<string, string> = {}
+  for (const code of convertibleCurrencies.value) {
+    const stored = preferences.exchangeRates[code]
+    const value = isValidRate(stored) ? stored : DEFAULT_EXCHANGE_RATES[code]
+    drafts[code] = String(value)
+  }
+  rateDrafts.value = drafts
+}
+
+async function reloadUsedCurrencies() {
+  const subs = await listSubscriptions({ includeCancelled: true })
+  const seen = new Set<CurrencyCode>()
+  for (const sub of subs) {
+    if ((SUPPORTED_CURRENCIES as string[]).includes(sub.currency)) {
+      seen.add(sub.currency as CurrencyCode)
+    }
+  }
+  usedCurrencies.value = SUPPORTED_CURRENCIES.filter((code) => seen.has(code))
+  syncRateDrafts()
+}
+
 onMounted(async () => {
-  await Promise.all([reloadReminders(), reloadCategories()])
+  await Promise.all([reloadReminders(), reloadCategories(), reloadUsedCurrencies()])
 })
+
+async function onRateChange(code: CurrencyCode, event: Event) {
+  const raw = (event.target as HTMLInputElement).value.trim()
+  const parsed = Number(raw)
+  rateMessage.value = null
+  if (!isValidRate(parsed)) {
+    rateDrafts.value = { ...rateDrafts.value, [code]: String(preferences.resolvedRates[code]) }
+    rateMessage.value =
+      preferences.language === 'zh-CN'
+        ? '汇率需为大于零的数字。'
+        : 'Rate must be a number greater than zero.'
+    return
+  }
+  rateDrafts.value = { ...rateDrafts.value, [code]: String(parsed) }
+  await preferences.setExchangeRate(code, parsed)
+  rateMessage.value = preferences.language === 'zh-CN' ? '汇率已更新。' : 'Exchange rate updated.'
+}
 
 async function openWebDav() {
   await router.push({ name: 'settings-webdav' })
@@ -273,7 +320,7 @@ async function confirmImport() {
   try {
     await importBackup(pendingImport.value, true)
     await preferences.load()
-    await reloadCategories()
+    await Promise.all([reloadCategories(), reloadUsedCurrencies()])
     backupMessage.value = preferences.language === 'zh-CN' ? '恢复成功。' : 'Restore completed.'
   } catch (error) {
     backupMessage.value = error instanceof Error ? error.message : 'Import failed.'
@@ -366,6 +413,74 @@ function cancelImport() {
               <option value="en">{{ preferences.t('settings.english') }}</option>
               <option value="zh-CN">{{ preferences.t('settings.chinese') }}</option>
             </select>
+          </div>
+        </div>
+      </section>
+
+      <section
+        v-if="convertibleCurrencies.length > 0"
+        class="space-y-3"
+        aria-labelledby="settings-rates-heading"
+      >
+        <h2 id="settings-rates-heading" class="section-label">
+          {{ preferences.language === 'zh-CN' ? '汇率（折合人民币）' : 'Exchange rates (to CNY)' }}
+        </h2>
+
+        <div class="settings-group min-w-0">
+          <div class="settings-row min-w-0 items-start gap-3">
+            <span class="icon-house icon-house-tertiary" aria-hidden="true">
+              <CircleDollarSign :size="25" :stroke-width="2.4" />
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="font-headline font-bold text-on-surface">
+                {{ preferences.language === 'zh-CN' ? '手动汇率' : 'Manual rates' }}
+              </p>
+              <p class="mt-1 text-sm leading-5 text-on-surface-variant">
+                {{
+                  preferences.language === 'zh-CN'
+                    ? '用于在首页估算折合合计。汇率为手动填写，不联网获取。'
+                    : 'Used to estimate the combined total on Home. Rates are manual and never fetched online.'
+                }}
+              </p>
+
+              <label
+                v-for="code in convertibleCurrencies"
+                :key="code"
+                class="mt-3 flex min-w-0 items-center gap-3 rounded-xl border-2 border-surface-container-highest bg-surface-container-low p-3"
+                :data-testid="`settings-rate-row`"
+                :data-currency="code"
+              >
+                <span class="min-w-0 flex-1 text-sm font-bold text-on-surface">
+                  1 {{ code }} =
+                </span>
+                <input
+                  :value="rateDrafts[code]"
+                  :data-testid="`settings-rate-input`"
+                  :data-currency="code"
+                  type="number"
+                  inputmode="decimal"
+                  min="0"
+                  step="0.0001"
+                  class="h-10 w-28 shrink-0 rounded-xl border-2 border-outline-variant bg-surface-container-lowest px-2 text-right text-sm font-bold text-on-surface"
+                  :aria-label="
+                    preferences.language === 'zh-CN'
+                      ? `1 ${code} 折合多少人民币`
+                      : `CNY value of 1 ${code}`
+                  "
+                  @change="onRateChange(code, $event)"
+                />
+                <span class="shrink-0 text-sm font-bold text-on-surface-variant">CNY</span>
+              </label>
+
+              <p
+                v-if="rateMessage"
+                class="mt-3 rounded-xl bg-surface-container-low p-3 text-sm font-bold text-on-surface"
+                data-testid="settings-rate-message"
+                role="status"
+              >
+                {{ rateMessage }}
+              </p>
+            </div>
           </div>
         </div>
       </section>

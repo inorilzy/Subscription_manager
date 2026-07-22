@@ -13,6 +13,7 @@ import {
   translate,
 } from '../i18n/messages'
 import { formatMinorAmount as formatMoney } from '../domain/money'
+import { parseStoredRates, resolveRates, type ExchangeRates } from '../domain/exchange'
 
 function systemPrefersDark(): boolean {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
@@ -25,8 +26,11 @@ export const usePreferencesStore = defineStore('preferences', () => {
   const language = ref<LanguageCode>('zh-CN')
   const theme = ref<ThemeMode>('system')
   const currency = ref<CurrencyCode>('CNY')
+  const exchangeRates = ref<ExchangeRates>({})
   const loaded = ref(false)
   const resolvedTheme = ref<'light' | 'dark'>('light')
+
+  const resolvedRates = computed(() => resolveRates(exchangeRates.value))
 
   let media: MediaQueryList | null = null
   let mediaHandler: ((event: MediaQueryListEvent) => void) | null = null
@@ -81,15 +85,17 @@ export const usePreferencesStore = defineStore('preferences', () => {
   }
 
   async function load(): Promise<void> {
-    const [langRaw, themeRaw, currencyRaw] = await Promise.all([
+    const [langRaw, themeRaw, currencyRaw, ratesRaw] = await Promise.all([
       getPreference('language', 'zh-CN'),
       getPreference('theme', 'system'),
       getPreference('currency', 'CNY'),
+      getPreference('exchange_rates', '{}'),
     ])
     language.value = isLanguageCode(langRaw) ? langRaw : 'zh-CN'
     paintLanguage(language.value)
     theme.value = isThemeMode(themeRaw) ? themeRaw : 'system'
     currency.value = isCurrencyCode(currencyRaw) ? currencyRaw : 'CNY'
+    exchangeRates.value = parseStoredRates(ratesRaw)
     applyTheme(theme.value)
     bindSystemThemeListener()
     loaded.value = true
@@ -113,11 +119,18 @@ export const usePreferencesStore = defineStore('preferences', () => {
     await setPreference('currency', next)
   }
 
+  async function setExchangeRate(code: CurrencyCode, rate: number): Promise<void> {
+    exchangeRates.value = { ...exchangeRates.value, [code]: rate }
+    await setPreference('exchange_rates', JSON.stringify(exchangeRates.value))
+  }
+
   return {
     language,
     theme,
     resolvedTheme,
     currency,
+    exchangeRates,
+    resolvedRates,
     loaded,
     locale,
     t,
@@ -126,6 +139,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
     setLanguage,
     setTheme,
     setCurrency,
+    setExchangeRate,
     applyTheme,
   }
 })
