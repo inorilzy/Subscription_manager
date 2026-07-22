@@ -1,10 +1,10 @@
 import { currencyFractionDigits, SUPPORTED_CURRENCIES, type CurrencyCode } from './money'
 
 /**
- * Manual, CNY-anchored exchange rates: `rate[X]` is how many CNY one major unit
- * of X is worth. They are user-editable estimates, never fetched, so conversion
- * stays fully offline and deterministic. Defaults reflect rough 2024-2025 levels
- * and are meant as an editable starting point, not live market data.
+ * CNY-anchored rates: `rate[X]` is how many CNY one major unit of X is worth.
+ * The store persists user edits and values from explicit network refreshes,
+ * while conversion stays local and deterministic between refreshes. Defaults
+ * are an editable starting point, not live market data.
  */
 export type ExchangeRates = Partial<Record<string, number>>
 

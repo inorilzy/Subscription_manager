@@ -655,6 +655,36 @@ describe('monthly and yearly renewals', () => {
     expect(total.text()).toMatch(/202\.17/)
     expect(wrapper.find('[data-testid="overview-cny-missing"]').exists()).toBe(false)
   })
+
+  it('opens all supported CNY rates in a compact secondary settings page', async () => {
+    const wrapper = await mountApp()
+
+    await openDestination(wrapper, 'nav-settings', '/settings')
+    expect(wrapper.find('[data-testid="settings-rate-input"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="open-exchange-rates-settings"]').trigger('click')
+    await flushPromises()
+    await nextTick()
+
+    expect(router.currentRoute.value.name).toBe('settings-exchange-rates')
+    const rows = wrapper.findAll('[data-testid="settings-rate-row"]')
+    expect(rows.map((row) => row.attributes('data-currency'))).toEqual([
+      'USD',
+      'EUR',
+      'GBP',
+      'JPY',
+      'INR',
+      'TRY',
+    ])
+
+    const gbpInput = wrapper
+      .findAll('[data-testid="settings-rate-input"]')
+      .find((input) => input.attributes('data-currency') === 'GBP')
+    expect(gbpInput).toBeDefined()
+    await gbpInput!.setValue('9.5')
+    await flushPromises()
+    expect(gbpInput!.element).toHaveProperty('value', '9.5')
+  })
 })
 
 describe('subscription lifecycle', () => {

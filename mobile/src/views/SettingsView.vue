@@ -8,7 +8,6 @@ import {
   Languages,
   Palette,
   Plus,
-  RefreshCw,
   ShieldCheck,
   Tag,
   Tags,
@@ -28,8 +27,6 @@ import {
 } from '../application/reminders'
 import { listSubscriptions } from '../application/subscriptions'
 import PageTopBar from '../components/PageTopBar.vue'
-import { DEFAULT_EXCHANGE_RATES, isValidRate } from '../domain/exchange'
-import { fetchRemoteRates } from '../application/exchange-remote'
 import {
   SUPPORTED_CURRENCIES,
   type CurrencyCode,
@@ -59,13 +56,6 @@ const pendingCategoryDelete = ref<string | null>(null)
 const categoryNameInput = ref<HTMLInputElement | null>(null)
 let categoryDeleteCancelButton: HTMLButtonElement | null = null
 let categoryDeleteTrigger: HTMLElement | null = null
-
-const usedCurrencies = ref<CurrencyCode[]>([])
-const rateDrafts = ref<Record<string, string>>({})
-const rateMessage = ref<string | null>(null)
-
-/** Non-CNY currencies actually used by subscriptions need an editable CNY rate. */
-const convertibleCurrencies = computed(() => usedCurrencies.value.filter((code) => code !== 'CNY'))
 
 const customCategories = computed(() =>
   categories.value.filter((category) => category.toLocaleLowerCase() !== 'default'),
@@ -183,85 +173,12 @@ async function reloadReminders() {
   permission.value = await getNotificationAdapter().getPermission()
 }
 
-function syncRateDrafts() {
-  const drafts: Record<string, string> = {}
-  for (const code of convertibleCurrencies.value) {
-    const stored = preferences.exchangeRates[code]
-    const value = isValidRate(stored) ? stored : DEFAULT_EXCHANGE_RATES[code]
-    drafts[code] = String(value)
-  }
-  rateDrafts.value = drafts
-}
-
-async function reloadUsedCurrencies() {
-  const subs = await listSubscriptions({ includeCancelled: true })
-  const seen = new Set<CurrencyCode>()
-  for (const sub of subs) {
-    if ((SUPPORTED_CURRENCIES as string[]).includes(sub.currency)) {
-      seen.add(sub.currency as CurrencyCode)
-    }
-  }
-  usedCurrencies.value = SUPPORTED_CURRENCIES.filter((code) => seen.has(code))
-  syncRateDrafts()
-}
-
 onMounted(async () => {
-  await Promise.all([reloadReminders(), reloadCategories(), reloadUsedCurrencies()])
+  await Promise.all([reloadReminders(), reloadCategories()])
 })
 
-async function onRateChange(code: CurrencyCode, event: Event) {
-  const raw = (event.target as HTMLInputElement).value.trim()
-  const parsed = Number(raw)
-  rateMessage.value = null
-  if (!isValidRate(parsed)) {
-    rateDrafts.value = { ...rateDrafts.value, [code]: String(preferences.resolvedRates[code]) }
-    rateMessage.value =
-      preferences.language === 'zh-CN'
-        ? '汇率需为大于零的数字。'
-        : 'Rate must be a number greater than zero.'
-    return
-  }
-  rateDrafts.value = { ...rateDrafts.value, [code]: String(parsed) }
-  await preferences.setExchangeRate(code, parsed)
-  rateMessage.value = preferences.language === 'zh-CN' ? '汇率已更新。' : 'Exchange rate updated.'
-}
-
-const ratesRefreshing = ref(false)
-
-const ratesUpdatedLabel = computed(() => {
-  const iso = preferences.exchangeRatesUpdatedAt
-  if (!iso) {
-    return preferences.language === 'zh-CN' ? '尚未从网络更新' : 'Not yet updated from network'
-  }
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) {
-    return preferences.language === 'zh-CN' ? '尚未从网络更新' : 'Not yet updated from network'
-  }
-  const formatted = new Intl.DateTimeFormat(preferences.locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date)
-  return preferences.language === 'zh-CN' ? `上次更新：${formatted}` : `Last updated: ${formatted}`
-})
-
-async function onRefreshRates() {
-  if (ratesRefreshing.value) return
-  ratesRefreshing.value = true
-  rateMessage.value = null
-  try {
-    const { rates, fetchedAt } = await fetchRemoteRates()
-    await preferences.applyRemoteRates(rates, fetchedAt)
-    syncRateDrafts()
-    rateMessage.value =
-      preferences.language === 'zh-CN' ? '已从网络更新汇率。' : 'Rates updated from network.'
-  } catch {
-    rateMessage.value =
-      preferences.language === 'zh-CN'
-        ? '更新失败，继续使用当前汇率。'
-        : 'Update failed; keeping current rates.'
-  } finally {
-    ratesRefreshing.value = false
-  }
+async function openExchangeRates() {
+  await router.push({ name: 'settings-exchange-rates' })
 }
 
 async function openWebDav() {
@@ -360,7 +277,7 @@ async function confirmImport() {
   try {
     await importBackup(pendingImport.value, true)
     await preferences.load()
-    await Promise.all([reloadCategories(), reloadUsedCurrencies()])
+    await reloadCategories()
     backupMessage.value = preferences.language === 'zh-CN' ? '恢复成功。' : 'Restore completed.'
   } catch (error) {
     backupMessage.value = error instanceof Error ? error.message : 'Import failed.'
@@ -433,6 +350,35 @@ function cancelImport() {
             </select>
           </div>
 
+          <button
+            type="button"
+            class="settings-row min-w-0 w-full gap-3 text-left"
+            data-testid="open-exchange-rates-settings"
+            @click="openExchangeRates"
+          >
+            <span class="icon-house icon-house-tertiary" aria-hidden="true">
+              <CircleDollarSign :size="25" :stroke-width="2.4" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block font-headline font-bold text-on-surface">
+                {{ preferences.language === 'zh-CN' ? '汇率设置' : 'Exchange rates' }}
+              </span>
+              <span class="mt-1 block text-sm leading-5 text-on-surface-variant">
+                {{
+                  preferences.language === 'zh-CN'
+                    ? '设置所有支持币种的人民币折算汇率。'
+                    : 'Set CNY conversion rates for every supported currency.'
+                }}
+              </span>
+            </span>
+            <ChevronRight
+              :size="24"
+              :stroke-width="2.5"
+              class="shrink-0 text-on-surface-variant"
+              aria-hidden="true"
+            />
+          </button>
+
           <div class="settings-row min-w-0 gap-3">
             <span class="icon-house icon-house-secondary" aria-hidden="true">
               <Languages :size="25" :stroke-width="2.4" />
@@ -457,101 +403,6 @@ function cancelImport() {
         </div>
       </section>
 
-      <section
-        v-if="convertibleCurrencies.length > 0"
-        class="space-y-3"
-        aria-labelledby="settings-rates-heading"
-      >
-        <h2 id="settings-rates-heading" class="section-label">
-          {{ preferences.language === 'zh-CN' ? '汇率（折合人民币）' : 'Exchange rates (to CNY)' }}
-        </h2>
-
-        <div class="settings-group min-w-0">
-          <div class="settings-row min-w-0 items-start gap-3">
-            <span class="icon-house icon-house-tertiary" aria-hidden="true">
-              <CircleDollarSign :size="25" :stroke-width="2.4" />
-            </span>
-            <div class="min-w-0 flex-1">
-              <p class="font-headline font-bold text-on-surface">
-                {{ preferences.language === 'zh-CN' ? '手动汇率' : 'Manual rates' }}
-              </p>
-              <p class="mt-1 text-sm leading-5 text-on-surface-variant">
-                {{
-                  preferences.language === 'zh-CN'
-                    ? '用于在首页估算折合合计。汇率为手动填写，不联网获取。'
-                    : 'Used to estimate the combined total on Home. Rates are manual and never fetched online.'
-                }}
-              </p>
-
-              <label
-                v-for="code in convertibleCurrencies"
-                :key="code"
-                class="mt-3 flex min-w-0 items-center gap-3 rounded-xl border-2 border-surface-container-highest bg-surface-container-low p-3"
-                :data-testid="`settings-rate-row`"
-                :data-currency="code"
-              >
-                <span class="min-w-0 flex-1 text-sm font-bold text-on-surface">
-                  1 {{ code }} =
-                </span>
-                <input
-                  :value="rateDrafts[code]"
-                  :data-testid="`settings-rate-input`"
-                  :data-currency="code"
-                  type="number"
-                  inputmode="decimal"
-                  min="0"
-                  step="0.0001"
-                  class="h-10 w-28 shrink-0 rounded-xl border-2 border-outline-variant bg-surface-container-lowest px-2 text-right text-sm font-bold text-on-surface"
-                  :aria-label="
-                    preferences.language === 'zh-CN'
-                      ? `1 ${code} 折合多少人民币`
-                      : `CNY value of 1 ${code}`
-                  "
-                  @change="onRateChange(code, $event)"
-                />
-                <span class="shrink-0 text-sm font-bold text-on-surface-variant">CNY</span>
-              </label>
-
-              <button
-                type="button"
-                class="tactile-btn-secondary mt-4 w-full px-4 py-2"
-                data-testid="settings-rate-refresh"
-                :disabled="ratesRefreshing"
-                @click="onRefreshRates"
-              >
-                <RefreshCw
-                  :size="18"
-                  :stroke-width="2.6"
-                  aria-hidden="true"
-                  :class="ratesRefreshing ? 'animate-spin' : undefined"
-                />
-                {{
-                  ratesRefreshing
-                    ? preferences.language === 'zh-CN'
-                      ? '更新中…'
-                      : 'Updating…'
-                    : preferences.language === 'zh-CN'
-                      ? '从网络更新汇率'
-                      : 'Update rates from network'
-                }}
-              </button>
-
-              <p class="mt-2 text-xs text-on-surface-variant" data-testid="settings-rate-updated">
-                {{ ratesUpdatedLabel }}
-              </p>
-
-              <p
-                v-if="rateMessage"
-                class="mt-3 rounded-xl bg-surface-container-low p-3 text-sm font-bold text-on-surface"
-                data-testid="settings-rate-message"
-                role="status"
-              >
-                {{ rateMessage }}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
       <section class="space-y-3" aria-labelledby="settings-categories-heading">
         <h2 id="settings-categories-heading" class="section-label">
           {{ preferences.language === 'zh-CN' ? '分类' : 'Categories' }}
