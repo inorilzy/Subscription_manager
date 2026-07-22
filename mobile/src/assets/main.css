@@ -329,6 +329,28 @@ html[data-theme='dark'][data-theme-preset='graphite'] {
     font: inherit;
   }
 
+  button,
+  .nav-item,
+  .tactile-btn,
+  .tactile-btn-secondary,
+  .tactile-btn-danger,
+  .icon-button,
+  .settings-row[type='button'],
+  .settings-row button {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* Keep form fields and readable content copyable. */
+  input,
+  textarea,
+  select,
+  [contenteditable='true'] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
   button:not(:disabled),
   select:not(:disabled),
   label[for] {
