@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChartPie, Minus, Plus, TrendingDown, TrendingUp } from '@lucide/vue'
+import { ChartPie, Minus, TrendingDown, TrendingUp } from '@lucide/vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getOverviewSnapshot, listSubscriptions } from '../application/subscriptions'
@@ -141,10 +141,6 @@ async function reload() {
 
 onMounted(reload)
 
-async function openCreate() {
-  await router.push({ name: 'subscription-create' })
-}
-
 async function openExchangeRates() {
   await router.push({ name: 'settings-exchange-rates' })
 }
@@ -160,19 +156,7 @@ function formatDonutAmount(minor: number, currency: string): string {
 
 <template>
   <section class="page">
-    <PageTopBar title="Subscription Manager" brand>
-      <template #action>
-        <button
-          type="button"
-          data-testid="add-subscription"
-          class="icon-button border-primary bg-primary-container text-on-primary-container"
-          :aria-label="preferences.t('subscriptions.addLong')"
-          @click="openCreate"
-        >
-          <Plus :size="24" :stroke-width="2.8" aria-hidden="true" />
-        </button>
-      </template>
-    </PageTopBar>
+    <PageTopBar title="Subscription Manager" brand />
 
     <div v-if="loaded" class="page-content">
       <section

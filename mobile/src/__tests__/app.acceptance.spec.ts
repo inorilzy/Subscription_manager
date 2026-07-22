@@ -38,13 +38,9 @@ async function openDestination(_wrapper: VueWrapper, testId: string, path: strin
   await nextTick()
 }
 
-async function openCreateFrom(wrapper: VueWrapper, source: 'overview' | 'subscriptions') {
-  if (source === 'subscriptions') {
-    await openDestination(wrapper, 'nav-subscriptions', '/subscriptions')
-  } else {
-    await openDestination(wrapper, 'nav-overview', '/')
-  }
-
+async function openCreateFrom(wrapper: VueWrapper, _source: 'overview' | 'subscriptions') {
+  // Overview no longer hosts an add button; always open create from subscriptions.
+  await openDestination(wrapper, 'nav-subscriptions', '/subscriptions')
   expect(wrapper.find('[data-testid="add-subscription"]').exists()).toBe(true)
   await router.push({ name: 'subscription-create' })
   await flushPromises()
@@ -757,7 +753,7 @@ describe('monthly and yearly renewals', () => {
     expect(wrapper.find('[data-testid="stats-category-row"]').exists()).toBe(false)
     expect(wrapper.find('.h-6.overflow-hidden.rounded-full').exists()).toBe(false)
     expect(wrapper.find('[data-testid="add-subscription-bottom"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="add-subscription"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="add-subscription"]').exists()).toBe(false)
 
     expect(wrapper.find('[data-testid="category-donut"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="category-donut-total"]').text()).toMatch(/202\.17/)
