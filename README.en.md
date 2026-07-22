@@ -16,6 +16,19 @@ No account required. No cloud backend required. Your data stays on your device b
 
 The product goal is simple: privacy-friendly, low-ops, and fast to install.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/01-overview.png" alt="Overview screen" width="220" />
+  <img src="docs/screenshots/02-subscriptions.png" alt="Subscriptions screen" width="220" />
+  <img src="docs/screenshots/03-settings.png" alt="Settings screen" width="220" />
+</p>
+
+| Overview | Subscriptions | Settings |
+| --- | --- | --- |
+| Active count, planned spend, multi-currency totals | Cards with next billing countdown | Theme, rates, categories, reminders, backup |
+
+
 ## Features
 
 - **Subscription management**: create, edit, cancel, and restore subscriptions
@@ -44,6 +57,7 @@ The product goal is simple: privacy-friendly, low-ops, and fast to install.
 Subscription_manager/
 ├── README.md                 # Chinese README (default)
 ├── README.en.md              # English README
+├── docs/screenshots/         # App screenshots
 ├── .scratch/                 # Specs and issue drafts
 └── mobile/                   # App source
     ├── android/              # Capacitor Android project

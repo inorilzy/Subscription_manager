@@ -16,6 +16,19 @@
 
 设计目标是**隐私友好、低运维、可快速安装使用**。
 
+## 界面预览
+
+<p align="center">
+  <img src="docs/screenshots/01-overview.png" alt="概览页" width="220" />
+  <img src="docs/screenshots/02-subscriptions.png" alt="订阅列表" width="220" />
+  <img src="docs/screenshots/03-settings.png" alt="设置页" width="220" />
+</p>
+
+| 概览 | 订阅 | 设置 |
+| --- | --- | --- |
+| 活跃订阅、本月计划扣费、多币种折合 | 订阅卡片、下次扣费倒计时 | 主题、汇率、分类、通知、备份 |
+
+
 ## 主要功能
 
 - **订阅管理**：新增、编辑、取消、恢复订阅
@@ -44,6 +57,7 @@
 Subscription_manager/
 ├── README.md                 # 中文说明（默认）
 ├── README.en.md              # English README
+├── docs/screenshots/         # 应用截图
 ├── .scratch/                 # 规格与 issue 草稿
 └── mobile/                   # 应用源码
     ├── android/              # Capacitor Android 工程
