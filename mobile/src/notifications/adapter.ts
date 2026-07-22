@@ -15,6 +15,8 @@ export interface NotificationAdapter {
   getPermission(): Promise<'granted' | 'denied' | 'prompt'>
   schedule(notifications: PlannedNotification[]): Promise<void>
   cancelAll(): Promise<void>
+  /** Temporary debug helper: fire one near-immediate notification without wiping schedules. */
+  fireTest?(title: string, body: string): Promise<void>
 }
 
 export class InMemoryNotificationAdapter implements NotificationAdapter {
@@ -37,6 +39,20 @@ export class InMemoryNotificationAdapter implements NotificationAdapter {
   async cancelAll() {
     this.scheduled = []
   }
+
+  async fireTest(title: string, body: string) {
+    this.scheduled = [
+      ...this.scheduled,
+      {
+        subscriptionId: 'test',
+        subscriptionName: 'Test',
+        billingDate: '2099-01-01',
+        fireAtLocal: new Date().toISOString(),
+        title,
+        body,
+      },
+    ]
+  }
 }
 
 /** Real device adapter backed by @capacitor/local-notifications. */
@@ -45,6 +61,16 @@ export class CapacitorNotificationAdapter implements NotificationAdapter {
     if (state === 'granted') return 'granted'
     if (state === 'denied') return 'denied'
     return 'prompt'
+  }
+
+  private async ensureChannel() {
+    await LocalNotifications.createChannel({
+      id: 'subscout-reminders',
+      name: 'Billing reminders',
+      description: 'Subscription billing reminders',
+      importance: 5,
+      visibility: 1,
+    })
   }
 
   async requestPermission() {
@@ -61,6 +87,8 @@ export class CapacitorNotificationAdapter implements NotificationAdapter {
     await this.cancelAll()
     if (notifications.length === 0) return
 
+    await this.ensureChannel()
+
     // Platform limits: Android caps pending alarms (~500); keep a safe margin.
     const limited = notifications.slice(0, 64)
     await LocalNotifications.schedule({
@@ -68,7 +96,8 @@ export class CapacitorNotificationAdapter implements NotificationAdapter {
         id: index + 1,
         title: item.title,
         body: item.body,
-        schedule: { at: new Date(item.fireAtLocal) },
+        schedule: { at: new Date(item.fireAtLocal), allowWhileIdle: true },
+        channelId: 'subscout-reminders',
         extra: {
           subscriptionId: item.subscriptionId,
           billingDate: item.billingDate,
@@ -84,6 +113,29 @@ export class CapacitorNotificationAdapter implements NotificationAdapter {
         notifications: pending.notifications.map((item) => ({ id: item.id })),
       })
     }
+  }
+
+  async fireTest(title: string, body: string) {
+    const permission = await this.requestPermission()
+    if (permission !== 'granted') {
+      throw new Error('Notification permission denied')
+    }
+
+    await this.ensureChannel()
+
+    const fireAt = new Date(Date.now() + 2000)
+    await LocalNotifications.schedule({
+      notifications: [
+        {
+          id: 900001,
+          title,
+          body,
+          schedule: { at: fireAt, allowWhileIdle: true },
+          channelId: 'subscout-reminders',
+          extra: { kind: 'manual-test' },
+        },
+      ],
+    })
   }
 }
 

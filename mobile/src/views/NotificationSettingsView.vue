@@ -18,6 +18,8 @@ const preferences = usePreferencesStore()
 const remindersEnabled = ref(false)
 const reminderLeadDays = ref(3)
 const permission = ref<'granted' | 'denied' | 'prompt'>('prompt')
+const testMessage = ref<string | null>(null)
+const testBusy = ref(false)
 
 async function reloadReminders() {
   const settings = await getReminderSettings()
@@ -45,6 +47,49 @@ async function onLeadDaysChange(event: Event) {
   reminderLeadDays.value = days
   if (remindersEnabled.value) {
     await reconcileNotifications(await listSubscriptions({ includeCancelled: true }))
+  }
+}
+
+async function onFireTestReminder() {
+  testBusy.value = true
+  testMessage.value = null
+  try {
+    const adapter = getNotificationAdapter()
+    const result = await adapter.requestPermission()
+    permission.value = result
+    if (result !== 'granted') {
+      testMessage.value =
+        preferences.language === 'zh-CN'
+          ? '通知权限未授予，无法测试。'
+          : 'Notification permission not granted.'
+      return
+    }
+    if (!adapter.fireTest) {
+      testMessage.value =
+        preferences.language === 'zh-CN'
+          ? '当前环境不支持本机测试通知。'
+          : 'This environment cannot fire device notifications.'
+      return
+    }
+    await adapter.fireTest(
+      preferences.language === 'zh-CN' ? '提醒测试' : 'Reminder test',
+      preferences.language === 'zh-CN'
+        ? '如果你看到这条通知，本地提醒通道可用。'
+        : 'If you see this, local reminders are working.',
+    )
+    testMessage.value =
+      preferences.language === 'zh-CN'
+        ? '已调度测试通知，约 2 秒后弹出。可先回到桌面再看。'
+        : 'Test notification scheduled. It should appear in about 2 seconds.'
+  } catch (error) {
+    testMessage.value =
+      error instanceof Error
+        ? error.message
+        : preferences.language === 'zh-CN'
+          ? '测试通知失败。'
+          : 'Failed to fire test notification.'
+  } finally {
+    testBusy.value = false
   }
 }
 
@@ -154,6 +199,47 @@ async function goBack() {
                   : 'Notification permission denied. Enable it in system settings, then retry.'
               }}
             </p>
+
+            <div
+              class="mt-4 rounded-xl border-2 border-dashed border-outline-variant bg-surface-container-low p-3"
+              data-testid="reminder-test-panel"
+            >
+              <p class="text-sm font-bold text-on-surface">
+                {{ preferences.language === 'zh-CN' ? '临时测试' : 'Temporary test' }}
+              </p>
+              <p class="mt-1 text-xs leading-4 text-on-surface-variant">
+                {{
+                  preferences.language === 'zh-CN'
+                    ? '点一下后约 2 秒弹出一条本机通知，用于确认权限和通道。'
+                    : 'Fires one on-device notification in about 2 seconds to verify permission and channel.'
+                }}
+              </p>
+              <button
+                type="button"
+                class="tactile-btn mt-3 w-full py-3"
+                data-testid="reminder-test-fire"
+                :disabled="testBusy"
+                @click="onFireTestReminder"
+              >
+                {{
+                  testBusy
+                    ? preferences.language === 'zh-CN'
+                      ? '发送中…'
+                      : 'Sending…'
+                    : preferences.language === 'zh-CN'
+                      ? '立即测试提醒'
+                      : 'Fire test reminder'
+                }}
+              </button>
+              <p
+                v-if="testMessage"
+                class="mt-2 text-sm font-bold text-on-surface-variant"
+                data-testid="reminder-test-message"
+                role="status"
+              >
+                {{ testMessage }}
+              </p>
+            </div>
           </div>
         </div>
       </div>
