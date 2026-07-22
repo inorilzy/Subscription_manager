@@ -7,13 +7,21 @@ import {
   DatabaseBackup,
   Languages,
   Palette,
+  RefreshCw,
   ShieldCheck,
   Tags,
 } from '@lucide/vue'
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { exportBackup, importBackup, validateBackup } from '../application/backup'
 import { deliverBackup } from '../application/backup-delivery'
+import {
+  checkForUpdates,
+  getCurrentAppVersion,
+  openExternalUrl,
+  type AppVersionInfo,
+  type UpdateCheckResult,
+} from '../application/updates'
 import { reconcileNotifications } from '../application/reminders'
 import { listSubscriptions } from '../application/subscriptions'
 import PageTopBar from '../components/PageTopBar.vue'
@@ -26,6 +34,78 @@ const backupMessage = ref<string | null>(null)
 const lastExportJson = ref('')
 const showImportConfirm = ref(false)
 const pendingImport = ref<unknown>(null)
+const appVersion = ref<AppVersionInfo | null>(null)
+const updateChecking = ref(false)
+const updateMessage = ref<string | null>(null)
+const updateResult = ref<UpdateCheckResult | null>(null)
+
+onMounted(async () => {
+  try {
+    appVersion.value = await getCurrentAppVersion()
+  } catch {
+    appVersion.value = { versionName: '1.0.0', versionCode: 1 }
+  }
+})
+
+function formatCurrentVersion(): string {
+  const info = appVersion.value
+  if (!info) return '…'
+  return `${info.versionName} (${info.versionCode})`
+}
+
+function updateStatusText(result: UpdateCheckResult): string {
+  if (result.status === 'upToDate') {
+    return preferences.language === 'zh-CN'
+      ? `已是最新版本 ${result.current.versionName}。`
+      : `You're on the latest version ${result.current.versionName}.`
+  }
+
+  const latestName = result.latest?.versionName ?? 'new'
+  return preferences.language === 'zh-CN'
+    ? `发现新版本 ${latestName}。可打开 GitHub Release 下载安装包。`
+    : `Update ${latestName} is available. Open the GitHub Release to download the APK.`
+}
+
+async function onCheckUpdates() {
+  if (updateChecking.value) return
+  updateChecking.value = true
+  updateMessage.value = preferences.language === 'zh-CN' ? '正在检查更新…' : 'Checking for updates…'
+  updateResult.value = null
+
+  try {
+    const current = appVersion.value ?? (await getCurrentAppVersion())
+    appVersion.value = current
+    const result = await checkForUpdates({ current })
+    updateResult.value = result
+    updateMessage.value = updateStatusText(result)
+  } catch (error) {
+    updateResult.value = null
+    updateMessage.value =
+      error instanceof Error
+        ? error.message
+        : preferences.language === 'zh-CN'
+          ? '检查更新失败。'
+          : 'Update check failed.'
+  } finally {
+    updateChecking.value = false
+  }
+}
+
+async function onOpenUpdate() {
+  const result = updateResult.value
+  if (!result) return
+  const url = result.downloadUrl ?? result.releasePageUrl
+  try {
+    await openExternalUrl(url)
+  } catch (error) {
+    updateMessage.value =
+      error instanceof Error
+        ? error.message
+        : preferences.language === 'zh-CN'
+          ? '无法打开下载页。'
+          : 'Unable to open the download page.'
+  }
+}
 
 async function openCategories() {
   await router.push({ name: 'settings-categories' })
@@ -361,8 +441,7 @@ function cancelImport() {
                 v-if="lastExportJson"
                 data-testid="settings-export-json"
                 class="mt-3 max-h-40 max-w-full overflow-auto whitespace-pre-wrap break-all rounded-xl bg-surface-container-low p-3 text-xs text-on-surface"
-                >{{ lastExportJson }}</pre
-              >
+                >{{ lastExportJson }}</pre>
             </div>
           </div>
 
@@ -390,6 +469,70 @@ function cancelImport() {
               aria-hidden="true"
             />
           </button>
+        </div>
+      </section>
+
+      <section class="space-y-3" aria-labelledby="settings-about-heading">
+        <h2 id="settings-about-heading" class="section-label">
+          {{ preferences.language === 'zh-CN' ? '关于' : 'About' }}
+        </h2>
+
+        <div class="settings-group min-w-0">
+          <div class="settings-row min-w-0 items-start gap-3">
+            <span class="icon-house icon-house-secondary" aria-hidden="true">
+              <RefreshCw :size="25" :stroke-width="2.4" />
+            </span>
+            <div class="min-w-0 flex-1">
+              <p class="font-headline font-bold text-on-surface">
+                {{ preferences.language === 'zh-CN' ? '版本与更新' : 'Version & updates' }}
+              </p>
+              <p class="mt-1 text-sm leading-5 text-on-surface-variant">
+                {{
+                  preferences.language === 'zh-CN'
+                    ? `当前版本 ${formatCurrentVersion()}。从 GitHub Release 检查是否有新安装包。`
+                    : `Current version ${formatCurrentVersion()}. Checks GitHub Releases for a newer APK.`
+                }}
+              </p>
+
+              <div class="mt-4 grid grid-cols-1 gap-2 min-[360px]:grid-cols-2">
+                <button
+                  type="button"
+                  class="tactile-btn-secondary min-w-0 px-2 py-2 text-sm leading-4"
+                  data-testid="settings-check-updates"
+                  :disabled="updateChecking"
+                  @click="onCheckUpdates"
+                >
+                  {{
+                    updateChecking
+                      ? preferences.language === 'zh-CN'
+                        ? '检查中…'
+                        : 'Checking…'
+                      : preferences.language === 'zh-CN'
+                        ? '检查更新'
+                        : 'Check for updates'
+                  }}
+                </button>
+                <button
+                  v-if="updateResult?.status === 'updateAvailable'"
+                  type="button"
+                  class="tactile-btn min-w-0 px-2 py-2 text-sm leading-4"
+                  data-testid="settings-open-update"
+                  @click="onOpenUpdate"
+                >
+                  {{ preferences.language === 'zh-CN' ? '打开下载页' : 'Open download' }}
+                </button>
+              </div>
+
+              <p
+                v-if="updateMessage"
+                class="mt-3 rounded-xl bg-surface-container-low p-3 text-sm text-on-surface"
+                data-testid="update-message"
+                role="status"
+              >
+                {{ updateMessage }}
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
