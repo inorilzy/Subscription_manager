@@ -279,13 +279,13 @@ async function openDetail(id: string) {
 
       <ul
         v-else-if="loaded"
-        class="grid grid-cols-1 gap-4 md:grid-cols-2"
+        class="grid grid-cols-1 gap-3 md:grid-cols-2"
         data-testid="subscription-list"
       >
         <li v-for="item in visible" :key="item.id">
           <button
             type="button"
-            class="tactile-card pressable relative w-full overflow-hidden p-5 text-left"
+            class="tactile-card pressable relative w-full overflow-hidden px-3.5 py-3 text-left"
             :class="{ 'opacity-70': item.status === 'cancelled' }"
             data-testid="subscription-item"
             :data-id="item.id"
@@ -301,49 +301,46 @@ async function openDetail(id: string) {
               {{ preferences.t('common.yearly') }}
             </span>
 
-            <div class="space-y-4" :class="{ 'pt-3': item.billingInterval === 'yearly' }">
-              <div class="flex items-start justify-between gap-3">
-                <div class="flex min-w-0 items-center gap-4">
+            <div class="space-y-2.5" :class="{ 'pt-2': item.billingInterval === 'yearly' }">
+              <div class="flex items-start justify-between gap-2.5">
+                <div class="flex min-w-0 items-center gap-3">
                   <SubscriptionIcon
                     :category="item.category"
                     :name="item.name"
                     :icon-key="item.iconKey"
-                    large
                   />
                   <div class="min-w-0">
-                    <p class="truncate font-headline text-xl font-bold text-on-surface">
+                    <p class="truncate font-headline text-lg font-bold leading-5 text-on-surface">
                       {{ item.name }}
                     </p>
-                    <span
-                      class="chip-pill mt-1 border-surface-container-highest bg-surface-container-low text-on-surface-variant"
-                    >
-                      {{ item.category }}
-                    </span>
-                    <p
-                      v-if="item.accountLabel"
-                      class="mt-1 truncate text-xs font-bold text-on-surface-variant"
-                      data-testid="subscription-account"
-                    >
-                      {{ item.accountLabel }}
+                    <p class="mt-0.5 truncate text-xs font-bold leading-4 text-on-surface-variant">
+                      <span>{{ item.category }}</span>
+                      <span v-if="item.accountLabel" class="text-outline"> · </span>
+                      <span v-if="item.accountLabel" data-testid="subscription-account">{{
+                        item.accountLabel
+                      }}</span>
                     </p>
                   </div>
                 </div>
                 <div class="shrink-0 text-right">
-                  <p class="font-headline text-xl font-extrabold text-on-surface">
+                  <p class="font-headline text-lg font-extrabold leading-5 text-on-surface">
                     {{ preferences.formatAmount(item.amountMinor, item.currency as never) }}
                   </p>
-                  <p class="label-small text-on-surface-variant" data-testid="subscription-daily">
+                  <p
+                    class="mt-0.5 text-xs font-bold leading-4 text-on-surface-variant"
+                    data-testid="subscription-daily"
+                  >
                     {{ dailyLabel(item) }}
                   </p>
                 </div>
               </div>
 
               <div
-                class="flex items-center gap-3 rounded-xl border border-surface-container-highest bg-surface-container-low p-3"
+                class="flex items-center gap-2 rounded-xl border border-surface-container-highest bg-surface-container-low px-2.5 py-2"
                 :data-testid="item.status === 'active' ? 'subscription-progress' : undefined"
               >
-                <div class="min-w-0 flex-1 space-y-2">
-                  <div class="flex items-center justify-between gap-3 text-sm font-bold">
+                <div class="min-w-0 flex-1 space-y-1">
+                  <div class="flex items-center justify-between gap-2 text-xs font-bold leading-4">
                     <span class="text-on-surface-variant">
                       {{ preferences.t('detail.nextBillingDate') }}
                     </span>
@@ -364,16 +361,18 @@ async function openDetail(id: string) {
                     :label="`${item.name} billing cycle remaining`"
                     :test-id="`subscription-progress-${item.id}`"
                   />
-                  <p class="text-xs text-on-surface-variant">{{ item.nextBillingDate }}</p>
+                  <p class="text-[11px] leading-3 text-on-surface-variant">
+                    {{ item.nextBillingDate }}
+                  </p>
                 </div>
-                <span class="icon-button size-10 border-b-2" aria-hidden="true">
-                  <ChevronRight :size="22" />
+                <span class="icon-button size-8 border-b-2" aria-hidden="true">
+                  <ChevronRight :size="18" />
                 </span>
               </div>
 
-              <div class="flex flex-wrap items-center gap-2">
+              <div class="flex flex-wrap items-center gap-1.5">
                 <span
-                  class="cycle-badge"
+                  class="cycle-badge !px-2 !py-0.5 !text-[11px]"
                   :class="
                     item.billingInterval === 'yearly' ? 'cycle-badge-yearly' : 'cycle-badge-monthly'
                   "
@@ -382,7 +381,7 @@ async function openDetail(id: string) {
                   {{ cycleLabel(item.billingInterval) }}
                 </span>
                 <span
-                  class="chip-pill"
+                  class="chip-pill !px-2 !py-0.5 !text-[11px]"
                   :class="
                     item.status === 'active' ? 'status-badge-active' : 'status-badge-cancelled'
                   "
