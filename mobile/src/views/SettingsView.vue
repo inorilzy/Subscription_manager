@@ -17,12 +17,7 @@ import { deliverBackup } from '../application/backup-delivery'
 import { reconcileNotifications } from '../application/reminders'
 import { listSubscriptions } from '../application/subscriptions'
 import PageTopBar from '../components/PageTopBar.vue'
-import {
-  SUPPORTED_CURRENCIES,
-  type CurrencyCode,
-  type LanguageCode,
-  type ThemeMode,
-} from '../i18n/messages'
+import { SUPPORTED_CURRENCIES, type CurrencyCode, type LanguageCode } from '../i18n/messages'
 import { usePreferencesStore } from '../stores/preferences'
 
 const preferences = usePreferencesStore()
@@ -48,9 +43,8 @@ async function openWebDav() {
   await router.push({ name: 'settings-webdav' })
 }
 
-async function onThemeChange(event: Event) {
-  const value = (event.target as HTMLSelectElement).value as ThemeMode
-  await preferences.setTheme(value)
+async function openAppearance() {
+  await router.push({ name: 'settings-appearance' })
 }
 
 async function onLanguageChange(event: Event) {
@@ -146,28 +140,34 @@ function cancelImport() {
         </h2>
 
         <div class="settings-group min-w-0">
-          <div class="settings-row min-w-0 gap-3">
+          <button
+            type="button"
+            class="settings-row min-w-0 w-full gap-3 text-left"
+            data-testid="open-appearance-settings"
+            @click="openAppearance"
+          >
             <span class="icon-house icon-house-primary" aria-hidden="true">
               <Palette :size="25" :stroke-width="2.4" />
             </span>
-            <label
-              class="min-w-0 flex-1 font-headline font-bold text-on-surface"
-              for="settings-theme"
-            >
-              {{ preferences.t('settings.appearance') }}
-            </label>
-            <select
-              id="settings-theme"
-              data-testid="settings-theme"
-              class="settings-row-control h-11 w-[7.25rem] max-w-[42%] rounded-xl border-2 border-outline-variant bg-surface-container-low px-2 text-sm font-bold text-on-surface"
-              :value="preferences.theme"
-              @change="onThemeChange"
-            >
-              <option value="system">{{ preferences.t('settings.system') }}</option>
-              <option value="light">{{ preferences.t('settings.light') }}</option>
-              <option value="dark">{{ preferences.t('settings.dark') }}</option>
-            </select>
-          </div>
+            <span class="min-w-0 flex-1">
+              <span class="block font-headline font-bold text-on-surface">
+                {{ preferences.language === 'zh-CN' ? '外观与主题' : 'Appearance' }}
+              </span>
+              <span class="mt-1 block text-sm leading-5 text-on-surface-variant">
+                {{
+                  preferences.language === 'zh-CN'
+                    ? '主题预设与浅色 / 深色显示模式。'
+                    : 'Theme presets and light / dark display mode.'
+                }}
+              </span>
+            </span>
+            <ChevronRight
+              :size="24"
+              :stroke-width="2.5"
+              class="shrink-0 text-on-surface-variant"
+              aria-hidden="true"
+            />
+          </button>
 
           <div class="settings-row min-w-0 gap-3">
             <span class="icon-house icon-house-tertiary" aria-hidden="true">

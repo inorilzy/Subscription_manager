@@ -1,10 +1,18 @@
 <script setup lang="ts">
 import { ChartPie, Minus, Plus, TrendingDown, TrendingUp } from '@lucide/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { getOverviewSnapshot, listSubscriptions } from '../application/subscriptions'
+import CategoryDonutChart from '../components/CategoryDonutChart.vue'
 import PageTopBar from '../components/PageTopBar.vue'
-import { computeMonthStats, type MonthStats } from '../domain/stats'
+import {
+  buildCategoryDonut,
+  computeMonthStats,
+  listCategoryDonutScopes,
+  resolveDefaultCategoryDonutScope,
+  type CategoryDonutScope,
+  type MonthStats,
+} from '../domain/stats'
 import { totalInCnyMinor } from '../domain/exchange'
 import { usePreferencesStore } from '../stores/preferences'
 
@@ -13,6 +21,7 @@ const preferences = usePreferencesStore()
 const activeCount = ref(0)
 const stats = ref<MonthStats | null>(null)
 const loaded = ref(false)
+const categoryScope = ref<CategoryDonutScope>('cny')
 
 function deltaAmount(currency: string): number {
   if (!stats.value) return 0
@@ -53,15 +62,6 @@ function deltaChipClass(currency: string): string {
   return 'bg-surface-container text-on-surface-variant'
 }
 
-function barClass(index: number): string {
-  return ['bg-secondary-container', 'bg-primary-container', 'bg-tertiary-container'][index % 3]!
-}
-
-function maxCategory(currency: string): number {
-  const group = stats.value?.categoriesByCurrency.find((row) => row.currency === currency)
-  return group?.categories.reduce((max, item) => Math.max(max, item.amountMinor), 0) ?? 0
-}
-
 const cnyTotal = computed(() =>
   totalInCnyMinor(stats.value?.totalsByCurrency ?? [], preferences.resolvedRates),
 )
@@ -73,6 +73,61 @@ const showCnyTotal = computed(() => {
   return totals.length > 1 && hasNonCny
 })
 
+const categoryGroups = computed(() => stats.value?.categoriesByCurrency ?? [])
+
+const categoryScopes = computed(() => listCategoryDonutScopes(categoryGroups.value))
+
+const canUseCombinedCny = computed(
+  () =>
+    categoryScopes.value.length > 1 &&
+    resolveDefaultCategoryDonutScope(categoryGroups.value, preferences.resolvedRates) === 'cny',
+)
+
+const showCategoryScopeSelect = computed(() => categoryScopes.value.length > 1)
+
+const otherLabel = computed(() => (preferences.language === 'zh-CN' ? '其他' : 'Other'))
+
+const categoryDonut = computed(() =>
+  buildCategoryDonut(categoryGroups.value, {
+    scope: categoryScope.value,
+    rates: preferences.resolvedRates,
+    otherLabel: otherLabel.value,
+  }),
+)
+
+const categoryCenterLabel = computed(() => {
+  if (categoryScope.value === 'cny') {
+    return preferences.language === 'zh-CN' ? '折合合计' : 'Combined'
+  }
+  return preferences.language === 'zh-CN' ? '本月合计' : 'This month'
+})
+
+function syncCategoryScope() {
+  categoryScope.value = resolveDefaultCategoryDonutScope(
+    categoryGroups.value,
+    preferences.resolvedRates,
+  )
+}
+
+watch(
+  () => [stats.value, preferences.resolvedRates] as const,
+  () => {
+    if (!stats.value) return
+    const scopes = listCategoryDonutScopes(stats.value.categoriesByCurrency)
+    const nextDefault = resolveDefaultCategoryDonutScope(
+      stats.value.categoriesByCurrency,
+      preferences.resolvedRates,
+    )
+    if (categoryScope.value === 'cny' && nextDefault !== 'cny') {
+      categoryScope.value = nextDefault
+      return
+    }
+    if (categoryScope.value !== 'cny' && !scopes.includes(String(categoryScope.value))) {
+      categoryScope.value = nextDefault
+    }
+  },
+)
+
 async function reload() {
   const [snapshot, all] = await Promise.all([
     getOverviewSnapshot(),
@@ -80,6 +135,7 @@ async function reload() {
   ])
   activeCount.value = snapshot.activeCount
   stats.value = computeMonthStats(all)
+  syncCategoryScope()
   loaded.value = true
 }
 
@@ -87,6 +143,18 @@ onMounted(reload)
 
 async function openCreate() {
   await router.push({ name: 'subscription-create' })
+}
+
+async function openExchangeRates() {
+  await router.push({ name: 'settings-exchange-rates' })
+}
+
+function onCategoryScopeChange(event: Event) {
+  categoryScope.value = (event.target as HTMLSelectElement).value
+}
+
+function formatDonutAmount(minor: number, currency: string): string {
+  return preferences.formatAmount(minor, currency as never)
 }
 </script>
 
@@ -198,7 +266,7 @@ async function openCreate() {
             {{
               preferences.language === 'zh-CN'
                 ? `缺少汇率：${cnyTotal.missing.join('、')}，未计入合计。`
-                : `Missing rates: ${cnyTotal.missing.join(', ')} — excluded from the total.`
+                : `Missing rates: ${cnyTotal.missing.join(', ')} - excluded from the total.`
             }}
           </p>
         </div>
@@ -225,52 +293,72 @@ async function openCreate() {
 
       <section
         v-if="stats && stats.categoriesByCurrency.length > 0"
-        class="tactile-card space-y-6 p-6"
+        class="tactile-card space-y-4 p-5"
+        data-testid="category-breakdown"
       >
-        <h2 class="flex items-center gap-2 font-headline text-2xl font-bold text-on-surface">
-          <ChartPie :size="26" :stroke-width="2.4" class="text-secondary" aria-hidden="true" />
-          {{ preferences.t('stats.categories') }}
-        </h2>
-        <div v-for="group in stats.categoriesByCurrency" :key="group.currency" class="space-y-4">
-          <p class="label-small tracking-[0.12em] text-primary uppercase">{{ group.currency }}</p>
-          <div
-            v-for="(item, index) in group.categories"
-            :key="group.currency + item.category"
-            class="space-y-2"
-            data-testid="stats-category-row"
+        <div class="flex items-start justify-between gap-3">
+          <h2
+            class="flex min-w-0 items-center gap-2 font-headline text-xl font-bold text-on-surface"
           >
-            <div class="flex items-center justify-between gap-4 font-bold">
-              <span class="truncate text-on-surface">{{ item.category }}</span>
-              <span class="shrink-0 text-on-surface-variant">
-                {{ preferences.formatAmount(item.amountMinor, group.currency as never) }}
-              </span>
-            </div>
-            <div class="h-6 overflow-hidden rounded-full bg-surface-container-highest">
-              <div
-                class="h-full rounded-full"
-                :class="barClass(index)"
-                :style="{
-                  width: `${
-                    maxCategory(group.currency)
-                      ? (item.amountMinor / maxCategory(group.currency)) * 100
-                      : 0
-                  }%`,
-                }"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
+            <ChartPie :size="24" :stroke-width="2.4" class="text-secondary" aria-hidden="true" />
+            {{ preferences.t('stats.categories') }}
+          </h2>
 
-      <button
-        type="button"
-        data-testid="add-subscription-bottom"
-        class="tactile-btn w-full py-4 text-lg"
-        @click="openCreate"
-      >
-        <Plus :size="23" :stroke-width="2.8" aria-hidden="true" />
-        {{ preferences.t('subscriptions.addLong') }}
-      </button>
+          <label v-if="showCategoryScopeSelect" class="flex shrink-0 items-center gap-2">
+            <span class="sr-only">
+              {{ preferences.language === 'zh-CN' ? '分类统计口径' : 'Category amount basis' }}
+            </span>
+            <select
+              data-testid="category-scope"
+              class="h-10 max-w-[9.5rem] rounded-xl border-2 border-outline-variant bg-surface-container-low px-2 text-sm font-bold text-on-surface"
+              :value="categoryScope"
+              @change="onCategoryScopeChange"
+            >
+              <option v-if="canUseCombinedCny || categoryScope === 'cny'" value="cny">
+                {{ preferences.language === 'zh-CN' ? '折合 CNY' : 'CNY combined' }}
+              </option>
+              <option v-for="code in categoryScopes" :key="code" :value="code">
+                {{ code }}
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <p v-if="categoryScope === 'cny'" class="text-xs leading-4 text-on-surface-variant">
+          {{
+            preferences.language === 'zh-CN'
+              ? '按设置中的手动汇率估算。'
+              : 'Estimated with your manual exchange rates.'
+          }}
+          <button
+            type="button"
+            class="font-bold text-primary underline-offset-2 hover:underline"
+            @click="openExchangeRates"
+          >
+            {{ preferences.language === 'zh-CN' ? '汇率设置' : 'Exchange rates' }}
+          </button>
+        </p>
+
+        <p
+          v-if="categoryDonut.missingRates.length > 0"
+          class="rounded-xl bg-error-container p-3 text-sm font-bold text-on-error-container"
+          role="alert"
+          data-testid="category-donut-missing-rates"
+        >
+          {{
+            preferences.language === 'zh-CN'
+              ? `缺少汇率：${categoryDonut.missingRates.join('、')}，无法折合 CNY。`
+              : `Missing rates: ${categoryDonut.missingRates.join(', ')}. Combined CNY is unavailable.`
+          }}
+        </p>
+
+        <CategoryDonutChart
+          :model="categoryDonut"
+          :format-amount="formatDonutAmount"
+          :center-label="categoryCenterLabel"
+          :empty-label="preferences.language === 'zh-CN' ? '暂无分类' : 'No categories'"
+        />
+      </section>
     </div>
   </section>
 </template>

@@ -57,7 +57,112 @@
 }
 
 html[data-theme-preset='scout'] {
-  /* Scout is the default palette; attribute marks the active preset for consumers. */
+  /* Scout is the default palette defined in @theme / dark block. */
+}
+
+html[data-theme-preset='ocean'] {
+  --color-on-surface-variant: #2f4a4c;
+  --color-outline: #5f7a7c;
+  --color-outline-variant: #b5cbcd;
+  --color-primary: #005f69;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #35c7c3;
+  --color-on-primary-container: #00373c;
+  --color-primary-fixed: #7ee8e4;
+  --color-primary-fixed-dim: #35c7c3;
+  --color-on-primary-fixed: #002022;
+  --color-on-primary-fixed-variant: #00484f;
+  --color-secondary: #1d4e89;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #5aa7ff;
+  --color-on-secondary-container: #00315f;
+  --color-secondary-fixed: #d2e4ff;
+  --color-secondary-fixed-dim: #5aa7ff;
+  --color-on-secondary-fixed-variant: #003a6e;
+  --color-tertiary: #7a4f00;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #f2a93b;
+  --color-on-tertiary-container: #412800;
+  --color-tertiary-fixed: #ffdfb0;
+  --color-tertiary-fixed-dim: #f2a93b;
+  --color-on-tertiary-fixed: #281800;
+  --color-on-tertiary-fixed-variant: #5c3b00;
+  --color-chart-1: #35c7c3;
+  --color-chart-2: #5aa7ff;
+  --color-chart-3: #f2a93b;
+  --color-chart-4: #f06f86;
+  --color-chart-5: #8574e8;
+  --color-chart-other: #9aa4a6;
+}
+
+html[data-theme-preset='coral'] {
+  --color-on-surface-variant: #4a3640;
+  --color-outline: #7d6670;
+  --color-outline-variant: #d4bdc7;
+  --color-primary: #982c49;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #ff5e7a;
+  --color-on-primary-container: #5c001f;
+  --color-primary-fixed: #ffd9df;
+  --color-primary-fixed-dim: #ff5e7a;
+  --color-on-primary-fixed: #3f0014;
+  --color-on-primary-fixed-variant: #7a1635;
+  --color-secondary: #006b63;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #2dcdbd;
+  --color-on-secondary-container: #003e39;
+  --color-secondary-fixed: #9ff2e7;
+  --color-secondary-fixed-dim: #2dcdbd;
+  --color-on-secondary-fixed-variant: #005049;
+  --color-tertiary: #7a5200;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #f2b33d;
+  --color-on-tertiary-container: #412a00;
+  --color-tertiary-fixed: #ffdf9e;
+  --color-tertiary-fixed-dim: #f2b33d;
+  --color-on-tertiary-fixed: #281800;
+  --color-on-tertiary-fixed-variant: #5c3d00;
+  --color-chart-1: #ff5e7a;
+  --color-chart-2: #2dcdbd;
+  --color-chart-3: #f2b33d;
+  --color-chart-4: #5b8def;
+  --color-chart-5: #9577e6;
+  --color-chart-other: #a49b95;
+}
+
+html[data-theme-preset='graphite'] {
+  --color-on-surface-variant: #3f444b;
+  --color-outline: #6b727b;
+  --color-outline-variant: #c4c9d0;
+  --color-primary: #343941;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #535b66;
+  --color-on-primary-container: #ffffff;
+  --color-primary-fixed: #d7dde7;
+  --color-primary-fixed-dim: #535b66;
+  --color-on-primary-fixed: #12161c;
+  --color-on-primary-fixed-variant: #2c323a;
+  --color-secondary: #006d73;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #45c4ca;
+  --color-on-secondary-container: #003f43;
+  --color-secondary-fixed: #9df0f5;
+  --color-secondary-fixed-dim: #45c4ca;
+  --color-on-secondary-fixed-variant: #005258;
+  --color-tertiary: #745600;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #e4ae3a;
+  --color-on-tertiary-container: #3d2c00;
+  --color-tertiary-fixed: #ffdf9a;
+  --color-tertiary-fixed-dim: #e4ae3a;
+  --color-on-tertiary-fixed: #261a00;
+  --color-on-tertiary-fixed-variant: #584000;
+  --color-chart-1: #535b66;
+  --color-chart-2: #45c4ca;
+  --color-chart-3: #e4ae3a;
+  --color-chart-4: #e76f51;
+  --color-chart-5: #7d84e8;
+  --color-chart-other: #9aa197;
 }
 
 html[data-theme='dark'] {
@@ -107,6 +212,78 @@ html[data-theme='dark'] {
   --color-chart-3: #f0c230;
   --color-chart-4: #ffb4ab;
   --color-chart-5: #c4b5fd;
+  --color-chart-other: #8d9982;
+}
+
+html[data-theme='dark'][data-theme-preset='ocean'] {
+  --color-on-surface-variant: #b7ced0;
+  --color-outline: #819a9c;
+  --color-outline-variant: #3a5153;
+  --color-primary: #4fd8d3;
+  --color-on-primary: #00373c;
+  --color-primary-container: #35c7c3;
+  --color-on-primary-container: #002f33;
+  --color-secondary: #a8c8ff;
+  --color-on-secondary: #00315f;
+  --color-secondary-container: #5aa7ff;
+  --color-on-secondary-container: #00284d;
+  --color-tertiary: #ffc56d;
+  --color-on-tertiary: #412800;
+  --color-tertiary-container: #f2a93b;
+  --color-on-tertiary-container: #3a2400;
+  --color-chart-1: #4fd8d3;
+  --color-chart-2: #8ec2ff;
+  --color-chart-3: #ffc56d;
+  --color-chart-4: #ff9aab;
+  --color-chart-5: #b3a7ff;
+  --color-chart-other: #8d999b;
+}
+
+html[data-theme='dark'][data-theme-preset='coral'] {
+  --color-on-surface-variant: #d7c0c9;
+  --color-outline: #a08a93;
+  --color-outline-variant: #564049;
+  --color-primary: #ffb1c0;
+  --color-on-primary: #5c001f;
+  --color-primary-container: #ff5e7a;
+  --color-on-primary-container: #3f0014;
+  --color-secondary: #6fe8db;
+  --color-on-secondary: #003e39;
+  --color-secondary-container: #2dcdbd;
+  --color-on-secondary-container: #00332f;
+  --color-tertiary: #ffc85e;
+  --color-on-tertiary: #412a00;
+  --color-tertiary-container: #f2b33d;
+  --color-on-tertiary-container: #3a2500;
+  --color-chart-1: #ff8aa0;
+  --color-chart-2: #6fe8db;
+  --color-chart-3: #ffc85e;
+  --color-chart-4: #8fb4ff;
+  --color-chart-5: #c2adff;
+  --color-chart-other: #a89f99;
+}
+
+html[data-theme='dark'][data-theme-preset='graphite'] {
+  --color-on-surface-variant: #c4c9d0;
+  --color-outline: #8b929b;
+  --color-outline-variant: #444a52;
+  --color-primary: #c5cbd5;
+  --color-on-primary: #1c2128;
+  --color-primary-container: #6a727d;
+  --color-on-primary-container: #ffffff;
+  --color-secondary: #67dce2;
+  --color-on-secondary: #003f43;
+  --color-secondary-container: #45c4ca;
+  --color-on-secondary-container: #00363a;
+  --color-tertiary: #f0c25c;
+  --color-on-tertiary: #3d2c00;
+  --color-tertiary-container: #e4ae3a;
+  --color-on-tertiary-container: #332500;
+  --color-chart-1: #a8b0bb;
+  --color-chart-2: #67dce2;
+  --color-chart-3: #f0c25c;
+  --color-chart-4: #ff9b84;
+  --color-chart-5: #aeb3ff;
   --color-chart-other: #8d9982;
 }
 

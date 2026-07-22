@@ -13,6 +13,7 @@ import SettingsView from '../views/SettingsView.vue'
 import CategoriesSettingsView from '../views/CategoriesSettingsView.vue'
 import ExchangeRatesSettingsView from '../views/ExchangeRatesSettingsView.vue'
 import NotificationSettingsView from '../views/NotificationSettingsView.vue'
+import AppearanceSettingsView from '../views/AppearanceSettingsView.vue'
 import WebDavSettingsView from '../views/WebDavSettingsView.vue'
 const routes: RouteRecordRaw[] = [
   {
@@ -50,6 +51,12 @@ const routes: RouteRecordRaw[] = [
     name: 'settings',
     component: SettingsView,
     meta: { title: 'Settings' },
+  },
+  {
+    path: '/settings/appearance',
+    name: 'settings-appearance',
+    component: AppearanceSettingsView,
+    meta: { title: 'Appearance' },
   },
   {
     path: '/settings/categories',

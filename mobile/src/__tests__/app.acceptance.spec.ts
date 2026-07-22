@@ -41,12 +41,11 @@ async function openDestination(_wrapper: VueWrapper, testId: string, path: strin
 async function openCreateFrom(wrapper: VueWrapper, source: 'overview' | 'subscriptions') {
   if (source === 'subscriptions') {
     await openDestination(wrapper, 'nav-subscriptions', '/subscriptions')
-    expect(wrapper.find('[data-testid="add-subscription"]').exists()).toBe(true)
   } else {
     await openDestination(wrapper, 'nav-overview', '/')
-    expect(wrapper.find('[data-testid="add-subscription"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="add-subscription-bottom"]').exists()).toBe(false)
   }
+
+  expect(wrapper.find('[data-testid="add-subscription"]').exists()).toBe(true)
   await router.push({ name: 'subscription-create' })
   await flushPromises()
   await nextTick()
@@ -425,7 +424,7 @@ describe('theme language currency', () => {
     expect(document.documentElement.dataset.themePreset).toBe('scout')
   })
 
-  it('switches language and theme, warns on currency change with existing data, and persists', async () => {
+  it('switches language and theme presets, persists dark mode, and keeps currency', async () => {
     let wrapper = await mountApp()
 
     await openCreateFrom(wrapper, 'overview')
@@ -442,13 +441,22 @@ describe('theme language currency', () => {
     await nextTick()
     expect(document.documentElement.lang).toBe('en')
     expect(wrapper.text()).toContain('Settings')
+    expect(wrapper.find('[data-testid="settings-theme"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Appearance')
 
+    await wrapper.get('[data-testid="open-appearance-settings"]').trigger('click')
+    await flushPromises()
+    await nextTick()
+    expect(router.currentRoute.value.name).toBe('settings-appearance')
+
+    await wrapper.get('[data-testid="theme-preset-ocean"]').trigger('click')
     await wrapper.get('[data-testid="settings-theme"]').setValue('dark')
     await flushPromises()
     await nextTick()
     expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(document.documentElement.dataset.themePreset).toBe('ocean')
 
+    await openDestination(wrapper, 'nav-settings', '/settings')
     await wrapper.get('[data-testid="settings-currency"]').setValue('USD')
     await flushPromises()
     await nextTick()
@@ -465,11 +473,19 @@ describe('theme language currency', () => {
 
     await openDestination(wrapper, 'nav-settings', '/settings')
     expect(wrapper.get('[data-testid="settings-language"]').element).toHaveProperty('value', 'en')
-    expect(wrapper.get('[data-testid="settings-theme"]').element).toHaveProperty('value', 'dark')
     expect(wrapper.get('[data-testid="settings-currency"]').element).toHaveProperty('value', 'USD')
     expect(document.documentElement.dataset.theme).toBe('dark')
+    expect(document.documentElement.dataset.themePreset).toBe('ocean')
     expect(document.documentElement.lang).toBe('en')
     expect(wrapper.text()).toContain('Settings')
+
+    await wrapper.get('[data-testid="open-appearance-settings"]').trigger('click')
+    await flushPromises()
+    await nextTick()
+    expect(wrapper.get('[data-testid="settings-theme"]').element).toHaveProperty('value', 'dark')
+    expect(wrapper.get('[data-testid="theme-preset-ocean"]').attributes('aria-pressed')).toBe(
+      'true',
+    )
   })
 })
 
@@ -738,6 +754,20 @@ describe('monthly and yearly renewals', () => {
     const total = wrapper.get('[data-testid="overview-cny-total"]')
     expect(total.text()).toMatch(/202\.17/)
     expect(wrapper.find('[data-testid="overview-cny-missing"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="stats-category-row"]').exists()).toBe(false)
+    expect(wrapper.find('.h-6.overflow-hidden.rounded-full').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="add-subscription-bottom"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="add-subscription"]').exists()).toBe(true)
+
+    expect(wrapper.find('[data-testid="category-donut"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="category-donut-total"]').text()).toMatch(/202\.17/)
+    expect(wrapper.get('[data-testid="category-scope"]').element).toHaveProperty('value', 'cny')
+
+    await wrapper.get('[data-testid="category-scope"]').setValue('USD')
+    await nextTick()
+    expect(wrapper.get('[data-testid="category-donut-total"]').text()).toMatch(/15\.99/)
+    expect(wrapper.get('[data-testid="category-legend"]').text()).toMatch(/Default/)
+    expect(wrapper.get('[data-testid="category-legend"]').text()).toMatch(/100/)
   })
 
   it('opens all supported CNY rates in a compact secondary settings page', async () => {

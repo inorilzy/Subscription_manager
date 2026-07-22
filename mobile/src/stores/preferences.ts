@@ -123,6 +123,12 @@ export const usePreferencesStore = defineStore('preferences', () => {
     await setPreference('theme', next)
   }
 
+  async function setThemePreset(next: ThemePreset): Promise<void> {
+    themePreset.value = normalizeThemePreset(next)
+    applyTheme(theme.value)
+    await setPreference('theme_preset', themePreset.value)
+  }
+
   async function setCurrency(next: CurrencyCode): Promise<void> {
     currency.value = next
     await setPreference('currency', next)
@@ -157,6 +163,7 @@ export const usePreferencesStore = defineStore('preferences', () => {
     load,
     setLanguage,
     setTheme,
+    setThemePreset,
     setCurrency,
     setExchangeRate,
     applyRemoteRates,
