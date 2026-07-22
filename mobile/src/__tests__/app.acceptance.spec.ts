@@ -124,7 +124,7 @@ describe('installable local-first app', () => {
     document.body.innerHTML = ''
   })
 
-  it('starts from a migrated empty database and navigates four destinations', async () => {
+  it('starts from a migrated empty database and navigates three destinations', async () => {
     const wrapper = await mountApp()
 
     expect(wrapper.find('[data-testid="app-ready"]').exists()).toBe(true)
@@ -133,19 +133,19 @@ describe('installable local-first app', () => {
     expect(wrapper.find('[data-testid="nav-overview"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="nav-subscriptions"]').exists()).toBe(true)
     expect(wrapper.findAll('h1')).toHaveLength(1)
-    expect(wrapper.find('[data-testid="nav-stats"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="nav-settings"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="nav-stats"]').exists()).toBe(false)
+
+    // Home consolidates the monthly spending summary that used to live on Stats.
+    expect(wrapper.text()).toContain('本月计划扣费')
+    expect(wrapper.get('[data-testid="overview-month-total"]').text()).toMatch(
+      /¥\s*0\.00|￥\s*0\.00|CNY\s*0\.00/,
+    )
 
     await openDestination(wrapper, 'nav-subscriptions', '/subscriptions')
     expect(router.currentRoute.value.name).toBe('subscriptions')
     expect(wrapper.text()).toContain('还没有订阅')
     expect(wrapper.text()).toContain('记录第一个订阅后会显示在这里')
-
-    await openDestination(wrapper, 'nav-stats', '/stats')
-    expect(router.currentRoute.value.name).toBe('stats')
-    expect(wrapper.text()).toContain('本月计划扣费')
-    expect(wrapper.text()).toMatch(/¥\s*0\.00|￥\s*0\.00|CNY\s*0\.00/)
-    expect(wrapper.findAll('h1')).toHaveLength(1)
 
     await openDestination(wrapper, 'nav-settings', '/settings')
     expect(router.currentRoute.value.name).toBe('settings')

@@ -7,15 +7,12 @@ import {
 export type MessageKey =
   | 'nav.overview'
   | 'nav.subscriptions'
-  | 'nav.stats'
   | 'nav.settings'
   | 'app.starting'
   | 'app.bootError'
   | 'overview.greeting'
-  | 'overview.title'
   | 'overview.squad'
   | 'overview.active'
-  | 'overview.monthly'
   | 'overview.empty'
   | 'overview.upcoming'
   | 'subscriptions.title'
@@ -78,9 +75,7 @@ export type MessageKey =
   | 'detail.deleteCancel'
   | 'edit.title'
   | 'edit.subtitle'
-  | 'stats.title'
   | 'stats.scheduled'
-  | 'stats.zeroBody'
   | 'stats.categories'
   | 'stats.categoriesEmpty'
   | 'settings.title'
@@ -144,15 +139,12 @@ export function isCurrencyCode(value: string): value is CurrencyCode {
 const en: Record<MessageKey, string> = {
   'nav.overview': 'Overview',
   'nav.subscriptions': 'Subscriptions',
-  'nav.stats': 'Stats',
   'nav.settings': 'Settings',
   'app.starting': 'Starting SubScout…',
   'app.bootError': 'Failed to start local database',
   'overview.greeting': 'Track upcoming charges',
-  'overview.title': 'Overview',
   'overview.squad': 'Current subscriptions',
   'overview.active': 'Active',
-  'overview.monthly': 'Monthly',
   'overview.empty': 'No subscriptions yet. Add your first recurring expense to see it here.',
   'overview.upcoming': 'Upcoming payments',
   'subscriptions.title': 'Subscriptions',
@@ -215,9 +207,7 @@ const en: Record<MessageKey, string> = {
   'detail.deleteCancel': 'Keep',
   'edit.title': 'Edit Subscription',
   'edit.subtitle': 'Update this recurring service.',
-  'stats.title': 'Your Stats',
   'stats.scheduled': 'Scheduled this month',
-  'stats.zeroBody': 'No charges planned for this calendar month yet.',
   'stats.categories': 'Category Breakdown',
   'stats.categoriesEmpty': 'Categories will appear after you track subscriptions.',
   'settings.title': 'Settings',
@@ -279,15 +269,12 @@ const en: Record<MessageKey, string> = {
 const zh: Record<MessageKey, string> = {
   'nav.overview': '概览',
   'nav.subscriptions': '订阅',
-  'nav.stats': '统计',
   'nav.settings': '设置',
   'app.starting': '正在启动 SubScout…',
   'app.bootError': '本地数据库启动失败',
   'overview.greeting': '关注即将到期的扣费',
-  'overview.title': '概览',
   'overview.squad': '当前订阅',
   'overview.active': '有效',
-  'overview.monthly': '月均',
   'overview.empty': '还没有订阅。添加第一笔周期支出后，会显示在这里。',
   'overview.upcoming': '即将扣费',
   'subscriptions.title': '订阅',
@@ -348,9 +335,7 @@ const zh: Record<MessageKey, string> = {
   'detail.deleteCancel': '保留',
   'edit.title': '编辑订阅',
   'edit.subtitle': '更新这项周期服务。',
-  'stats.title': '你的统计',
   'stats.scheduled': '本月计划扣费',
-  'stats.zeroBody': '本日历月暂无计划扣费。',
   'stats.categories': '分类明细',
   'stats.categoriesEmpty': '记录订阅后会显示分类明细。',
   'settings.title': '设置',

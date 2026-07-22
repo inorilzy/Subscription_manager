@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { Plus } from '@lucide/vue'
+import { ChartPie, Minus, Plus, TrendingDown, TrendingUp } from '@lucide/vue'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { getOverviewSnapshot } from '../application/subscriptions'
+import { getOverviewSnapshot, listSubscriptions } from '../application/subscriptions'
 import BillingProgressBar from '../components/BillingProgressBar.vue'
 import PageTopBar from '../components/PageTopBar.vue'
 import SubscriptionIcon from '../components/SubscriptionIcon.vue'
 import { cycleProgress } from '../domain/billing'
 import { todayDateOnly } from '../domain/clock'
+import { computeMonthStats, type MonthStats } from '../domain/stats'
 import { relativeBillingLabel, type Subscription } from '../domain/subscription'
 import { usePreferencesStore } from '../stores/preferences'
 
@@ -15,6 +16,7 @@ const router = useRouter()
 const preferences = usePreferencesStore()
 const activeCount = ref(0)
 const upcoming = ref<Subscription[]>([])
+const stats = ref<MonthStats | null>(null)
 const loaded = ref(false)
 
 function cycleLabel(interval: Subscription['billingInterval']) {
@@ -50,10 +52,62 @@ function urgencyClass(item: Subscription): string {
   return 'border-secondary-fixed-dim/30 bg-secondary-fixed text-on-secondary-fixed-variant'
 }
 
+function deltaAmount(currency: string): number {
+  if (!stats.value) return 0
+  const current =
+    stats.value.totalsByCurrency.find((row) => row.currency === currency)?.amountMinor ?? 0
+  const previous =
+    stats.value.previousTotalsByCurrency.find((row) => row.currency === currency)?.amountMinor ?? 0
+  return current - previous
+}
+
+function deltaFor(currency: string): string {
+  const delta = deltaAmount(currency)
+  if (delta === 0) {
+    return preferences.language === 'zh-CN' ? '与上月持平' : 'Flat vs last month'
+  }
+  const formatted = preferences.formatAmount(Math.abs(delta), currency as never)
+  if (delta > 0) {
+    return preferences.language === 'zh-CN'
+      ? `比上月多 ${formatted}`
+      : `Up ${formatted} vs last month`
+  }
+  return preferences.language === 'zh-CN'
+    ? `比上月少 ${formatted}`
+    : `Down ${formatted} vs last month`
+}
+
+function deltaIcon(currency: string) {
+  const delta = deltaAmount(currency)
+  if (delta > 0) return TrendingUp
+  if (delta < 0) return TrendingDown
+  return Minus
+}
+
+function deltaChipClass(currency: string): string {
+  const delta = deltaAmount(currency)
+  if (delta > 0) return 'bg-error-container text-on-error-container'
+  if (delta < 0) return 'bg-primary-container/20 text-primary'
+  return 'bg-surface-container text-on-surface-variant'
+}
+
+function barClass(index: number): string {
+  return ['bg-secondary-container', 'bg-primary-container', 'bg-tertiary-container'][index % 3]!
+}
+
+function maxCategory(currency: string): number {
+  const group = stats.value?.categoriesByCurrency.find((row) => row.currency === currency)
+  return group?.categories.reduce((max, item) => Math.max(max, item.amountMinor), 0) ?? 0
+}
+
 async function reload() {
-  const snapshot = await getOverviewSnapshot()
+  const [snapshot, all] = await Promise.all([
+    getOverviewSnapshot(),
+    listSubscriptions({ includeCancelled: true }),
+  ])
   activeCount.value = snapshot.activeCount
   upcoming.value = snapshot.upcoming
+  stats.value = computeMonthStats(all)
   loaded.value = true
 }
 
@@ -88,45 +142,128 @@ async function seeAll() {
       </template>
     </PageTopBar>
 
-    <div class="page-content">
-      <section v-if="loaded" class="tactile-card tactile-card-strong hero-accent space-y-4 p-6">
+    <div v-if="loaded" class="page-content">
+      <section
+        class="tactile-card tactile-card-strong stats-hero relative space-y-5 overflow-hidden p-6"
+      >
         <div class="relative z-10 space-y-1">
-          <h1 class="page-heading-mobile text-on-tertiary-fixed">
+          <h1 class="page-heading-mobile text-on-surface">
             {{ preferences.t('overview.squad') }}
           </h1>
-          <p class="text-on-tertiary-fixed-variant">
+          <p class="text-on-surface-variant">
             {{ preferences.t('overview.greeting') }}
           </p>
         </div>
 
+        <div class="relative z-10 grid grid-cols-2 gap-3">
+          <div
+            class="rounded-xl border-2 border-surface-variant bg-surface-container-lowest p-4 text-center"
+            style="border-bottom-width: 4px"
+          >
+            <p class="label-small tracking-[0.12em] text-on-surface-variant uppercase">
+              {{ preferences.t('overview.active') }}
+            </p>
+            <p class="display-number text-primary" data-testid="overview-active-count">
+              {{ activeCount }}
+            </p>
+          </div>
+          <div
+            class="rounded-xl border-2 border-surface-variant bg-surface-container-lowest p-4 text-center"
+            style="border-bottom-width: 4px"
+          >
+            <p class="label-small tracking-[0.12em] text-on-surface-variant uppercase">
+              {{ preferences.t('stats.scheduled') }}
+            </p>
+            <div data-testid="overview-month-total" class="mt-1 space-y-1">
+              <p
+                v-for="row in stats?.totalsByCurrency ?? []"
+                :key="row.currency"
+                class="min-w-0 max-w-full truncate font-headline text-2xl leading-tight font-extrabold text-error"
+              >
+                {{ preferences.formatAmount(row.amountMinor, row.currency as never) }}
+              </p>
+              <p
+                v-if="!stats || stats.totalsByCurrency.length === 0"
+                class="font-headline text-2xl leading-tight font-extrabold text-error"
+              >
+                {{ preferences.formatAmount(0) }}
+              </p>
+            </div>
+          </div>
+        </div>
+
         <div
-          class="relative z-10 rounded-xl border-2 border-surface-variant bg-surface-container-lowest p-4 text-center"
-          style="border-bottom-width: 4px"
+          v-if="stats && stats.totalsByCurrency.length > 0"
+          class="relative z-10 flex flex-wrap justify-center gap-2"
         >
-          <p class="label-small tracking-[0.12em] text-on-surface-variant uppercase">
-            {{ preferences.t('overview.active') }}
-          </p>
-          <p class="display-number text-primary" data-testid="overview-active-count">
-            {{ activeCount }}
+          <p
+            v-for="row in stats.totalsByCurrency"
+            :key="`delta-${row.currency}`"
+            class="chip-pill w-max border-0"
+            :class="deltaChipClass(row.currency)"
+            data-testid="overview-delta"
+          >
+            <component :is="deltaIcon(row.currency)" :size="18" aria-hidden="true" />
+            {{ deltaFor(row.currency) }}
           </p>
         </div>
 
-        <p class="relative z-10 text-center text-sm text-on-tertiary-fixed-variant">
+        <p class="relative z-10 text-center text-xs text-on-surface-variant">
           {{
             preferences.language === 'zh-CN'
-              ? '金额分析请到「统计」查看。'
-              : 'See Stats for spending analysis.'
+              ? '不同币种分别统计，不做汇率换算。'
+              : 'Amounts are grouped by currency with no FX conversion.'
           }}
         </p>
         <p
           v-if="activeCount === 0"
-          class="relative z-10 text-center text-on-tertiary-fixed-variant"
+          class="relative z-10 text-center text-on-surface-variant"
+          data-testid="overview-empty"
         >
           {{ preferences.t('overview.empty') }}
         </p>
       </section>
 
-      <section v-if="loaded" class="space-y-4">
+      <section
+        v-if="stats && stats.categoriesByCurrency.length > 0"
+        class="tactile-card space-y-6 p-6"
+      >
+        <h2 class="flex items-center gap-2 font-headline text-2xl font-bold text-on-surface">
+          <ChartPie :size="26" :stroke-width="2.4" class="text-secondary" aria-hidden="true" />
+          {{ preferences.t('stats.categories') }}
+        </h2>
+        <div v-for="group in stats.categoriesByCurrency" :key="group.currency" class="space-y-4">
+          <p class="label-small tracking-[0.12em] text-primary uppercase">{{ group.currency }}</p>
+          <div
+            v-for="(item, index) in group.categories"
+            :key="group.currency + item.category"
+            class="space-y-2"
+            data-testid="stats-category-row"
+          >
+            <div class="flex items-center justify-between gap-4 font-bold">
+              <span class="truncate text-on-surface">{{ item.category }}</span>
+              <span class="shrink-0 text-on-surface-variant">
+                {{ preferences.formatAmount(item.amountMinor, group.currency as never) }}
+              </span>
+            </div>
+            <div class="h-6 overflow-hidden rounded-full bg-surface-container-highest">
+              <div
+                class="h-full rounded-full"
+                :class="barClass(index)"
+                :style="{
+                  width: `${
+                    maxCategory(group.currency)
+                      ? (item.amountMinor / maxCategory(group.currency)) * 100
+                      : 0
+                  }%`,
+                }"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="space-y-4">
         <div class="flex items-end justify-between gap-3">
           <h2 class="font-headline text-2xl font-bold text-on-surface">
             {{ preferences.t('overview.upcoming') }}

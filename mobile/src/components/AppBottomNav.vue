@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChartNoAxesColumn, Compass, List, Settings as SettingsIcon } from '@lucide/vue'
+import { Compass, List, Settings as SettingsIcon } from '@lucide/vue'
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePreferencesStore } from '../stores/preferences'
@@ -22,13 +22,6 @@ const items = computed(() => [
     to: '/subscriptions',
     testId: 'nav-subscriptions',
     icon: List,
-  },
-  {
-    name: 'stats',
-    label: preferences.t('nav.stats'),
-    to: '/stats',
-    testId: 'nav-stats',
-    icon: ChartNoAxesColumn,
   },
   {
     name: 'settings',

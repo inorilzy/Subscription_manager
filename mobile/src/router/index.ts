@@ -9,7 +9,6 @@ import SubscriptionsView from '../views/SubscriptionsView.vue'
 import SubscriptionCreateView from '../views/SubscriptionCreateView.vue'
 import SubscriptionDetailView from '../views/SubscriptionDetailView.vue'
 import SubscriptionEditView from '../views/SubscriptionEditView.vue'
-import StatsView from '../views/StatsView.vue'
 import SettingsView from '../views/SettingsView.vue'
 import WebDavSettingsView from '../views/WebDavSettingsView.vue'
 const routes: RouteRecordRaw[] = [
@@ -42,12 +41,6 @@ const routes: RouteRecordRaw[] = [
     name: 'subscription-detail',
     component: SubscriptionDetailView,
     meta: { title: 'Subscription Details' },
-  },
-  {
-    path: '/stats',
-    name: 'stats',
-    component: StatsView,
-    meta: { title: 'Stats' },
   },
   {
     path: '/settings',
