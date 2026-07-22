@@ -7,6 +7,11 @@ import router from '../router'
 import { resetDatabaseForTests, reinitializeDatabaseKeepingDataForTests } from '../database/client'
 import { setNow } from '../domain/clock'
 import { assertCatalogComplete } from '../i18n/messages'
+import {
+  getNotificationAdapter,
+  resetNotificationAdapterForTests,
+  type InMemoryNotificationAdapter,
+} from '../notifications/adapter'
 
 async function mountApp(): Promise<VueWrapper> {
   setActivePinia(createPinia())
@@ -515,6 +520,52 @@ describe('category management', () => {
   })
 })
 
+describe('notification settings', () => {
+  beforeEach(async () => {
+    setNow('2030-01-15T12:00:00')
+    resetNotificationAdapterForTests()
+    await resetDatabaseForTests()
+    document.body.innerHTML = ''
+  })
+
+  afterEach(() => {
+    setNow(null)
+    document.body.innerHTML = ''
+  })
+
+  it('opens reminder controls in a secondary page and persists changes', async () => {
+    const adapter = getNotificationAdapter() as InMemoryNotificationAdapter
+    adapter.permission = 'granted'
+    const wrapper = await mountApp()
+
+    await openDestination(wrapper, 'nav-settings', '/settings')
+    expect(wrapper.find('[data-testid="settings-reminders-enabled"]').exists()).toBe(false)
+
+    await wrapper.get('[data-testid="open-notification-settings"]').trigger('click')
+    await flushPromises()
+    await nextTick()
+    expect(router.currentRoute.value.name).toBe('settings-notifications')
+
+    await wrapper.get('[data-testid="settings-reminders-enabled"]').setValue(true)
+    await wrapper.get('[data-testid="settings-reminder-lead-days"]').setValue('7')
+    await flushPromises()
+    await nextTick()
+
+    await openDestination(wrapper, 'nav-settings', '/settings')
+    await wrapper.get('[data-testid="open-notification-settings"]').trigger('click')
+    await flushPromises()
+    await nextTick()
+
+    expect(wrapper.get('[data-testid="settings-reminders-enabled"]').element).toHaveProperty(
+      'checked',
+      true,
+    )
+    expect(wrapper.get('[data-testid="settings-reminder-lead-days"]').element).toHaveProperty(
+      'value',
+      '7',
+    )
+  })
+})
 describe('monthly and yearly renewals', () => {
   beforeEach(async () => {
     setNow('2030-01-15T12:00:00')

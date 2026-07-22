@@ -10,16 +10,11 @@ import {
   ShieldCheck,
   Tags,
 } from '@lucide/vue'
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { exportBackup, importBackup, validateBackup } from '../application/backup'
 import { deliverBackup } from '../application/backup-delivery'
-import {
-  getReminderSettings,
-  reconcileNotifications,
-  setReminderEnabled,
-  setReminderLeadDays,
-} from '../application/reminders'
+import { reconcileNotifications } from '../application/reminders'
 import { listSubscriptions } from '../application/subscriptions'
 import PageTopBar from '../components/PageTopBar.vue'
 import {
@@ -28,30 +23,21 @@ import {
   type LanguageCode,
   type ThemeMode,
 } from '../i18n/messages'
-import { getNotificationAdapter } from '../notifications/adapter'
 import { usePreferencesStore } from '../stores/preferences'
 
 const preferences = usePreferencesStore()
 const router = useRouter()
-const remindersEnabled = ref(false)
-const reminderLeadDays = ref(3)
-const permission = ref<'granted' | 'denied' | 'prompt'>('prompt')
 const backupMessage = ref<string | null>(null)
 const lastExportJson = ref('')
 const showImportConfirm = ref(false)
 const pendingImport = ref<unknown>(null)
 
-async function reloadReminders() {
-  const settings = await getReminderSettings()
-  remindersEnabled.value = settings.enabled
-  reminderLeadDays.value = settings.leadDays
-  permission.value = await getNotificationAdapter().getPermission()
-}
-
-onMounted(reloadReminders)
-
 async function openCategories() {
   await router.push({ name: 'settings-categories' })
+}
+
+async function openNotifications() {
+  await router.push({ name: 'settings-notifications' })
 }
 
 async function openExchangeRates() {
@@ -88,26 +74,6 @@ function currencyLabel(code: CurrencyCode): string {
   if (code === 'INR') return 'INR (₹)'
   if (code === 'TRY') return 'TRY (₺)'
   return code
-}
-
-async function onReminderToggle(event: Event) {
-  const enabled = (event.target as HTMLInputElement).checked
-  const result = await setReminderEnabled(enabled)
-  permission.value = result
-  remindersEnabled.value = enabled && result === 'granted'
-  if (remindersEnabled.value) {
-    await reconcileNotifications(await listSubscriptions({ includeCancelled: true }))
-  }
-  await reloadReminders()
-}
-
-async function onLeadDaysChange(event: Event) {
-  const days = Number((event.target as HTMLSelectElement).value)
-  await setReminderLeadDays(days)
-  reminderLeadDays.value = days
-  if (remindersEnabled.value) {
-    await reconcileNotifications(await listSubscriptions({ includeCancelled: true }))
-  }
 }
 
 async function onExport() {
@@ -284,6 +250,35 @@ function cancelImport() {
             />
           </button>
 
+          <button
+            type="button"
+            class="settings-row min-w-0 w-full gap-3 text-left"
+            data-testid="open-notification-settings"
+            @click="openNotifications"
+          >
+            <span class="icon-house icon-house-secondary" aria-hidden="true">
+              <BellRing :size="25" :stroke-width="2.4" />
+            </span>
+            <span class="min-w-0 flex-1">
+              <span class="block font-headline font-bold text-on-surface">
+                {{ preferences.language === 'zh-CN' ? '通知设置' : 'Notifications' }}
+              </span>
+              <span class="mt-1 block text-sm leading-5 text-on-surface-variant">
+                {{
+                  preferences.language === 'zh-CN'
+                    ? '管理扣费提醒和提前通知时间。'
+                    : 'Manage billing reminders and notification timing.'
+                }}
+              </span>
+            </span>
+            <ChevronRight
+              :size="24"
+              :stroke-width="2.5"
+              class="shrink-0 text-on-surface-variant"
+              aria-hidden="true"
+            />
+          </button>
+
           <div class="settings-row min-w-0 gap-3">
             <span class="icon-house icon-house-secondary" aria-hidden="true">
               <Languages :size="25" :stroke-width="2.4" />
@@ -304,87 +299,6 @@ function cancelImport() {
               <option value="en">{{ preferences.t('settings.english') }}</option>
               <option value="zh-CN">{{ preferences.t('settings.chinese') }}</option>
             </select>
-          </div>
-        </div>
-      </section>
-
-      <section class="space-y-3" aria-labelledby="settings-reminders-heading">
-        <h2 id="settings-reminders-heading" class="section-label">
-          {{ preferences.language === 'zh-CN' ? '通知' : 'Notifications' }}
-        </h2>
-
-        <div class="settings-group min-w-0">
-          <div class="settings-row min-w-0 items-start gap-3">
-            <span class="icon-house icon-house-secondary" aria-hidden="true">
-              <BellRing :size="25" :stroke-width="2.4" />
-            </span>
-            <div class="min-w-0 flex-1">
-              <label class="flex min-h-11 min-w-0 items-center justify-between gap-3">
-                <span class="min-w-0">
-                  <span class="block font-headline font-bold text-on-surface">
-                    {{ preferences.language === 'zh-CN' ? '扣费提醒' : 'Billing reminders' }}
-                  </span>
-                  <span class="mt-1 block text-sm leading-5 text-on-surface-variant">
-                    {{
-                      preferences.language === 'zh-CN' ? '启用本地提醒' : 'Enable local reminders'
-                    }}
-                  </span>
-                </span>
-                <span class="relative inline-flex h-8 w-14 shrink-0">
-                  <input
-                    data-testid="settings-reminders-enabled"
-                    type="checkbox"
-                    role="switch"
-                    class="peer sr-only"
-                    :checked="remindersEnabled"
-                    @change="onReminderToggle"
-                  />
-                  <span
-                    class="pointer-events-none absolute inset-0 rounded-full border-2 border-b-4 border-outline-variant bg-surface-container-high transition-colors peer-checked:border-primary peer-checked:bg-primary-container peer-focus-visible:ring-2 peer-focus-visible:ring-primary peer-focus-visible:ring-offset-2"
-                    aria-hidden="true"
-                  ></span>
-                  <span
-                    class="pointer-events-none absolute top-1 left-1 size-5 rounded-full transition-all"
-                    :class="
-                      remindersEnabled
-                        ? 'translate-x-6 bg-on-primary-container'
-                        : 'translate-x-0 bg-surface-container-lowest'
-                    "
-                    aria-hidden="true"
-                  ></span>
-                </span>
-              </label>
-
-              <label
-                class="mt-4 flex min-w-0 items-center gap-3 rounded-xl border-2 border-surface-container-highest bg-surface-container-low p-3"
-              >
-                <span class="min-w-0 flex-1 text-sm font-bold text-on-surface-variant">
-                  {{ preferences.language === 'zh-CN' ? '提前天数' : 'Days before billing' }}
-                </span>
-                <select
-                  data-testid="settings-reminder-lead-days"
-                  class="h-10 w-[4.5rem] shrink-0 rounded-xl border-2 border-outline-variant bg-surface-container-lowest px-2 text-sm font-bold text-on-surface"
-                  :value="reminderLeadDays"
-                  @change="onLeadDaysChange"
-                >
-                  <option :value="1">1</option>
-                  <option :value="3">3</option>
-                  <option :value="7">7</option>
-                </select>
-              </label>
-
-              <p
-                v-if="permission === 'denied'"
-                class="mt-3 rounded-xl bg-error-container p-3 text-sm font-bold text-on-error-container"
-                data-testid="reminder-permission-denied"
-              >
-                {{
-                  preferences.language === 'zh-CN'
-                    ? '通知权限被拒绝。请在系统设置中启用后重试。'
-                    : 'Notification permission denied. Enable it in system settings, then retry.'
-                }}
-              </p>
-            </div>
           </div>
         </div>
       </section>

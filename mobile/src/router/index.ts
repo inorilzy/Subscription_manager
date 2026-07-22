@@ -12,6 +12,7 @@ import SubscriptionEditView from '../views/SubscriptionEditView.vue'
 import SettingsView from '../views/SettingsView.vue'
 import CategoriesSettingsView from '../views/CategoriesSettingsView.vue'
 import ExchangeRatesSettingsView from '../views/ExchangeRatesSettingsView.vue'
+import NotificationSettingsView from '../views/NotificationSettingsView.vue'
 import WebDavSettingsView from '../views/WebDavSettingsView.vue'
 const routes: RouteRecordRaw[] = [
   {
@@ -61,6 +62,12 @@ const routes: RouteRecordRaw[] = [
     name: 'settings-exchange-rates',
     component: ExchangeRatesSettingsView,
     meta: { title: 'Exchange rates' },
+  },
+  {
+    path: '/settings/notifications',
+    name: 'settings-notifications',
+    component: NotificationSettingsView,
+    meta: { title: 'Notifications' },
   },
   {
     path: '/settings/webdav',
